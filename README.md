@@ -12,13 +12,21 @@ Install Ansible, then run these commands from the cloned folder so `ansible.cfg`
 export WORKSPACE_ROOT=/path/to/parent/directory/
 ```
 
-### 2. Review the targets and defaults in `group_vars/all.yml`, then preview the changes:
+### 2. Create targets and defaults in `group_vars/all.yml`, then preview the changes:
 
 ```bash
 make check
 ```
 
 or: `ansible-playbook --check --diff playbook.yml`
+
+#### Note on Merge Behavior
+
+- dict/map keys are recursively merged with `devcontainer_defaults`. This includes `features`, `container_env`, `remote_env`, `vscode_settings`.
+
+- list keys are appended with duplicate replacement/removal. This includes `vscode_extensions`, `mounts`, `run_args`, `forwardPorts`.
+
+- Scalar/string/bool keys are replaced by the per-container value, if it exists. This includes `image`, `post_start_command`, `install`, `name`...
 
 ### 3. When the diff looks right, apply it with:
 

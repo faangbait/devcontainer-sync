@@ -7,19 +7,19 @@ devcontainer_sync_create_missing: false
 
 devcontainer_defaults:
   image: mcr.microsoft.com/devcontainers/base:jammy
-  vscode_extensions:
-    - Anthropic.claude-code
-    - openai.chatgpt
   post_start_command: sudo chown -R vscode:vscode /home/vscode/.claude*
   post_create_command: bash .devcontainer/install.sh
   post_attach_command: ""
   install: ""
-  container_env:
-    CLAUDE_HOME: /home/vscode/.claude_project
+  # note: the following keys get merged. see README.
+  container_env: {}
+  vscode_extensions:
+    - Anthropic.claude-code
+    - openai.chatgpt
   mounts:
-    - source=claude_config,target=${containerWorkspaceFolder}/.claude,type=volume
+    - source=claude_config_${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume
+    - source=claude_config,target=/home/vscode/.claude,type=volume
     - source=codex_config,target=/home/vscode/.codex,type=volume
-    - source=claude_config_${localWorkspaceFolderBasename},target=/home/vscode/.claude_project,type=volume
 
 devcontainers:
   - path: java-example/.devcontainer/devcontainer.json
@@ -35,7 +35,7 @@ devcontainers:
     image: mcr.microsoft.com/devcontainers/rust:2-1-trixie
     install: |
       sudo apt update
-      sudo -n apt-get install -y --no-install-recommends default-jre-headless    
+      sudo -n apt-get install -y --no-install-recommends default-jre-headless
   - path: python-example/.devcontainer/devcontainer.json
     image: mcr.microsoft.com/devcontainers/python:3.14
     post_attach_command: pip install -r ${containerWorkspaceFolder}/requirements.txt
@@ -50,8 +50,6 @@ devcontainers:
       - aaron-bond.better-comments
       - KevinRose.vsc-python-indent
       - mikestead.dotenv
-      - Anthropic.claude-code
-      - openai.chatgpt
     vscode_settings:
       python.testing.unittestArgs:
         - -v
