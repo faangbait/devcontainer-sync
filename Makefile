@@ -33,5 +33,5 @@ syntax:
 
 
 test:
-	$(ANSIBLE_PLAYBOOK) --diff $(PLAYBOOK) -e @$(EXAMPLE_VARS) -e workspace_root=$(TEST_WORKSPACE_ROOT) -e devcontainer_sync_create_missing=true -e devcontainer_sync_backup=false
+	$(ANSIBLE_PLAYBOOK) --diff $(PLAYBOOK) -e @$(EXAMPLE_VARS) -e workspace_root=$(TEST_WORKSPACE_ROOT) -e devcontainer_sync_create_missing=true -e devcontainer_sync_backup=false -e devcontainer_sync_backup_existing_dir=false
 	find $(TEST_WORKSPACE_ROOT) -type f ! -path $(TEST_WORKSPACE_ROOT)/golden_output -print0 | sort -z | xargs -0r cat > $(TEST_WORKSPACE_ROOT)/golden_output
