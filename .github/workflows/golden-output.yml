@@ -1,0 +1,37 @@
+name: Golden output
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-golden-output:
+    name: Verify golden output
+    runs-on: ubuntu-latest
+    environment: maintainer-approval
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install Ansible
+        run: python -m pip install ansible
+
+      - name: Render golden output
+        run: make test
+
+      - name: Verify golden output is committed
+        run: |
+          if [ -n "$(git status --porcelain -- tests/golden_output)" ]; then
+            git diff -- tests/golden_output
+            echo "::error::tests/golden_output is out of date. Run 'make test' and commit the updated golden output."
+            exit 1
+          fi
