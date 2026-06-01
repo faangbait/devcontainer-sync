@@ -9,26 +9,32 @@ Install Ansible, then run these commands from the cloned folder so `ansible.cfg`
 ### 1. Set `WORKSPACE_ROOT` when the projects are not under `~/dev/`:
 
 ```bash
-WORKSPACE_ROOT=/path/to/workspaces ansible-playbook --check --diff playbook.yml
+export WORKSPACE_ROOT=/path/to/parent/directory/
 ```
 
 ### 2. Review the targets and defaults in `group_vars/all.yml`, then preview the changes:
 
 ```bash
-ansible-playbook --check --diff playbook.yml
+make check
 ```
+
+or: `ansible-playbook --check --diff playbook.yml`
 
 ### 3. When the diff looks right, apply it with:
 
 ```bash
-ansible-playbook --diff playbook.yml
+make apply
 ```
+
+or: `ansible-playbook --diff playbook.yml`
 
 ### 4. By default, missing `devcontainer.json` targets are skipped. To create missing `.devcontainer` directories and files, run:
 
 ```bash
-ansible-playbook --diff playbook.yml -e devcontainer_sync_create_missing=true
+make create-missing
 ```
+
+or: `ansible-playbook --diff playbook.yml -e devcontainer_sync_create_missing=true`
 
 ### 5. Render the example configuration into `tests/`:
 
