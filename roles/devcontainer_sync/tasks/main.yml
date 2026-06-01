@@ -53,6 +53,7 @@
     label: "{{ item.item.path | dirname }}"
     index_var: devcontainer_sync_target_index
   when:
+    - devcontainer_sync_backup_existing_dir | bool
     - item.stat.exists
     - >-
       (devcontainer_sync_devcontainer_render_preview.results[devcontainer_sync_target_index].changed | default(false))
