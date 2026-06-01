@@ -10,15 +10,15 @@ permissions:
 jobs:
   verify-golden-output:
     name: Verify golden output
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: maintainer-approval
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install Ansible
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ansible
+      - name: Show Ansible version
+        run: ansible-playbook --version
 
       - name: Render golden output
         run: make test
