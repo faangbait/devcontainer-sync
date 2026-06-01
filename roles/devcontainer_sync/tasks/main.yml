@@ -1,0 +1,112 @@
+---
+- name: Check target devcontainer files
+  ansible.builtin.stat:
+    path: "{{ workspace_root }}/{{ item.path }}"
+  loop: "{{ devcontainers }}"
+  loop_control:
+    label: "{{ item.path }}"
+  register: devcontainer_sync_targets
+
+- name: Check whether devcontainer.json files would change
+  ansible.builtin.template:
+    src: devcontainer.json.j2
+    dest: "{{ workspace_root }}/{{ item.item.path }}"
+    mode: "0644"
+    backup: false
+  check_mode: true
+  loop: "{{ devcontainer_sync_targets.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+  vars:
+    devcontainer: "{{ devcontainer_defaults | combine(item.item, recursive=True) }}"
+  register: devcontainer_sync_devcontainer_render_preview
+  when: item.stat.exists
+
+- name: Check whether install.sh files would change
+  ansible.builtin.template:
+    src: install.sh.j2
+    dest: "{{ workspace_root }}/{{ item.item.path | dirname }}/install.sh"
+    mode: "0755"
+    backup: false
+  check_mode: true
+  loop: "{{ devcontainer_sync_targets.results }}"
+  loop_control:
+    label: "{{ item.item.path | dirname }}/install.sh"
+  vars:
+    devcontainer: "{{ devcontainer_defaults | combine(item.item, recursive=True) }}"
+  register: devcontainer_sync_install_render_preview
+  when: item.stat.exists
+
+- name: Set devcontainer backup timestamp
+  ansible.builtin.set_fact:
+    devcontainer_sync_backup_timestamp: '{{ lookup("pipe", "date +%s") }}'
+
+- name: Move changed .devcontainer directories to timestamped backups
+  ansible.builtin.command:
+    argv:
+      - mv
+      - "{{ workspace_root }}/{{ item.item.path | dirname }}"
+      - "{{ workspace_root }}/{{ item.item.path | dirname | dirname }}/.devcontainer-bak-{{ devcontainer_sync_backup_timestamp }}"
+    removes: "{{ workspace_root }}/{{ item.item.path | dirname }}"
+  loop: "{{ devcontainer_sync_targets.results }}"
+  loop_control:
+    label: "{{ item.item.path | dirname }}"
+    index_var: devcontainer_sync_target_index
+  when:
+    - item.stat.exists
+    - >-
+      (devcontainer_sync_devcontainer_render_preview.results[devcontainer_sync_target_index].changed | default(false))
+      or
+      (devcontainer_sync_install_render_preview.results[devcontainer_sync_target_index].changed | default(false))
+
+- name: Ensure .devcontainer directories exist
+  ansible.builtin.file:
+    path: "{{ workspace_root }}/{{ item.item.path | dirname }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ devcontainer_sync_targets.results }}"
+  loop_control:
+    label: "{{ item.item.path | dirname }}"
+  when: item.stat.exists or devcontainer_sync_create_missing | bool
+
+- name: Render devcontainer.json files
+  ansible.builtin.template:
+    src: devcontainer.json.j2
+    dest: "{{ workspace_root }}/{{ item.item.path }}"
+    mode: "0644"
+    backup: "{{ devcontainer_sync_backup }}"
+  loop: "{{ devcontainer_sync_targets.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+  vars:
+    devcontainer: "{{ devcontainer_defaults | combine(item.item, recursive=True) }}"
+  when: item.stat.exists or devcontainer_sync_create_missing | bool
+
+- name: Render install.sh files
+  ansible.builtin.template:
+    src: install.sh.j2
+    dest: "{{ workspace_root }}/{{ item.item.path | dirname }}/install.sh"
+    mode: "0755"
+    backup: "{{ devcontainer_sync_backup }}"
+  loop: "{{ devcontainer_sync_targets.results }}"
+  loop_control:
+    label: "{{ item.item.path | dirname }}/install.sh"
+  vars:
+    devcontainer: "{{ devcontainer_defaults | combine(item.item, recursive=True) }}"
+  when: item.stat.exists or devcontainer_sync_create_missing | bool
+
+- name: Copy project extra .devcontainer files
+  ansible.builtin.include_tasks: extra_files.yml
+  loop: "{{ devcontainer_sync_targets.results }}"
+  loop_control:
+    label: "{{ devcontainer_sync_target.item.path | dirname }}"
+    loop_var: devcontainer_sync_target
+  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+
+- name: Report skipped missing devcontainer files
+  ansible.builtin.debug:
+    msg: "Skipped missing target {{ item.item.path }}; set devcontainer_sync_create_missing=true to create it."
+  loop: "{{ devcontainer_sync_targets.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+  when: not item.stat.exists and not devcontainer_sync_create_missing | bool

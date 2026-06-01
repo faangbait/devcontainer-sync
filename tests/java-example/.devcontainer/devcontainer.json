@@ -1,0 +1,28 @@
+{
+	// Managed by devcontainer-sync. Edit group_vars/all.yml instead.
+	"name": "java-example",
+	"image": "mcr.microsoft.com/devcontainers/java:3-25-trixie",
+	"features": {
+        "ghcr.io/devcontainers/features/java:1": {
+            "installGradle": false,
+            "installMaven": false,
+            "version": "none"
+        }
+    },
+	"customizations": {
+		"vscode": {
+			"extensions": [
+        "Anthropic.claude-code",
+        "openai.chatgpt"
+    ]		}
+	},
+	"postStartCommand": "sudo chown -R vscode:vscode /home/vscode/.claude*",
+	"postCreateCommand": "bash .devcontainer/install.sh",
+	"containerEnv": {
+        "CLAUDE_HOME": "/home/vscode/.claude_project"
+    },
+	"mounts": [
+        "source=claude_config,target=${containerWorkspaceFolder}/.claude,type=volume",
+        "source=codex_config,target=/home/vscode/.codex,type=volume",
+        "source=claude_config_${localWorkspaceFolderBasename},target=/home/vscode/.claude_project,type=volume"
+    ]}

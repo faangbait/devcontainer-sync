@@ -1,0 +1,67 @@
+---
+# Override with: WORKSPACE_ROOT=/path/to/workspaces ansible-playbook playbook.yml
+workspace_root: "{{ lookup('env', 'WORKSPACE_ROOT') | default('~/dev/', true) }}"
+
+# Keep this false until you are ready to create missing project directories.
+devcontainer_sync_create_missing: false
+
+devcontainer_defaults:
+  image: mcr.microsoft.com/devcontainers/base:jammy
+  vscode_extensions:
+    - Anthropic.claude-code
+    - openai.chatgpt
+  post_start_command: sudo chown -R vscode:vscode /home/vscode/.claude*
+  post_create_command: bash .devcontainer/install.sh
+  post_attach_command: ""
+  install: ""
+  container_env:
+    CLAUDE_HOME: /home/vscode/.claude_project
+  mounts:
+    - source=claude_config,target=${containerWorkspaceFolder}/.claude,type=volume
+    - source=codex_config,target=/home/vscode/.codex,type=volume
+    - source=claude_config_${localWorkspaceFolderBasename},target=/home/vscode/.claude_project,type=volume
+
+devcontainers:
+  - path: java-example/.devcontainer/devcontainer.json
+    image: mcr.microsoft.com/devcontainers/java:3-25-trixie
+    features:
+      ghcr.io/devcontainers/features/java:1:
+        version: none
+        installMaven: false
+        installGradle: false
+    install: |
+      curl -sL -o cfr.jar 'https://www.benf.org/other/cfr/cfr-0.152.jar'
+  - path: rust-example/.devcontainer/devcontainer.json
+    image: mcr.microsoft.com/devcontainers/rust:2-1-trixie
+    install: |
+      sudo apt update
+      sudo -n apt-get install -y --no-install-recommends default-jre-headless    
+  - path: python-example/.devcontainer/devcontainer.json
+    image: mcr.microsoft.com/devcontainers/python:3.14
+    post_attach_command: pip install -r ${containerWorkspaceFolder}/requirements.txt
+    features:
+      ghcr.io/devcontainers/features/python:1:
+        installTools: true
+        version: 3.14
+      ghcr.io/larsnieuwenhuizen/features/jqyq:0: {}
+      ghcr.io/devcontainers/features/aws-cli:1:
+        version: latest
+    vscode_extensions:
+      - aaron-bond.better-comments
+      - KevinRose.vsc-python-indent
+      - mikestead.dotenv
+      - Anthropic.claude-code
+      - openai.chatgpt
+    vscode_settings:
+      python.testing.unittestArgs:
+        - -v
+        - -s
+        - .
+        - -p
+        - "*_test.py"
+      python.testing.pytestEnabled: false
+      python.testing.unittestEnabled: true
+      python.defaultInterpreterPath: /usr/local/python/current/bin/python
+    install: |
+      sudo apt update
+      sudo apt install -y --no-install-recommends ansible

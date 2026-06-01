@@ -1,0 +1,66 @@
+---
+- name: Set project extra .devcontainer path
+  ansible.builtin.set_fact:
+    devcontainer_sync_extra_project_path: "{{ devcontainer_sync_target.item.path | dirname | dirname }}"
+
+- name: Set descendant project extra file prefixes
+  ansible.builtin.set_fact:
+    devcontainer_sync_extra_child_project_paths: >-
+      {{
+        devcontainers
+        | map(attribute='path')
+        | map('dirname')
+        | map('dirname')
+        | select('match', '^' ~ (devcontainer_sync_extra_project_path | regex_escape) ~ '/.+')
+        | map('regex_replace', '^' ~ (devcontainer_sync_extra_project_path | regex_escape) ~ '/', '')
+        | list
+      }}
+
+- name: Set descendant project extra file exclusion regex
+  ansible.builtin.set_fact:
+    devcontainer_sync_extra_child_project_regex: >-
+      {{
+        '^(' ~ (devcontainer_sync_extra_child_project_paths | map('regex_escape') | join('|')) ~ ')($|/)'
+        if devcontainer_sync_extra_child_project_paths | length > 0
+        else '$.^'
+      }}
+
+- name: Check project extra .devcontainer source directory
+  ansible.builtin.stat:
+    path: "{{ devcontainer_sync_extra_files_root }}/{{ devcontainer_sync_extra_project_path }}"
+  register: devcontainer_sync_extra_source
+
+- name: Find project extra .devcontainer files
+  ansible.builtin.find:
+    paths: "{{ devcontainer_sync_extra_source.stat.path }}"
+    file_type: file
+    recurse: true
+  register: devcontainer_sync_extra_files
+  when: devcontainer_sync_extra_source.stat.isdir | default(false)
+
+- name: Ensure project extra .devcontainer file directories exist
+  ansible.builtin.file:
+    path: >-
+      {{ workspace_root }}/{{ devcontainer_sync_target.item.path | dirname }}/{{ item.path | relpath(devcontainer_sync_extra_source.stat.path) | dirname }}
+    state: directory
+    mode: "0755"
+  loop: "{{ devcontainer_sync_extra_files.files | default([]) }}"
+  loop_control:
+    label: "{{ devcontainer_sync_target.item.path | dirname }}/{{ item.path | relpath(devcontainer_sync_extra_source.stat.path) | dirname }}"
+  when:
+    - (item.path | relpath(devcontainer_sync_extra_source.stat.path)) not in ["devcontainer.json", "install.sh"]
+    - not ((item.path | relpath(devcontainer_sync_extra_source.stat.path)) is match(devcontainer_sync_extra_child_project_regex))
+
+- name: Copy project extra .devcontainer files
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: >-
+      {{ workspace_root }}/{{ devcontainer_sync_target.item.path | dirname }}/{{ item.path | relpath(devcontainer_sync_extra_source.stat.path) }}
+    mode: preserve
+    backup: "{{ devcontainer_sync_backup }}"
+  loop: "{{ devcontainer_sync_extra_files.files | default([]) }}"
+  loop_control:
+    label: "{{ devcontainer_sync_target.item.path | dirname }}/{{ item.path | relpath(devcontainer_sync_extra_source.stat.path) }}"
+  when:
+    - (item.path | relpath(devcontainer_sync_extra_source.stat.path)) not in ["devcontainer.json", "install.sh"]
+    - not ((item.path | relpath(devcontainer_sync_extra_source.stat.path)) is match(devcontainer_sync_extra_child_project_regex))

@@ -1,0 +1,4 @@
+---
+devcontainer_sync_create_missing: false
+devcontainer_sync_backup: true
+devcontainer_sync_extra_files_root: "{{ playbook_dir }}/files"

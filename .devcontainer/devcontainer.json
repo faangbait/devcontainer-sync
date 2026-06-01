@@ -1,0 +1,4 @@
+{
+    "name": "devcontainer-sync",
+    "image": "ghcr.io/ansible/community-ansible-dev-tools:latest"
+}

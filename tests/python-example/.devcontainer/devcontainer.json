@@ -1,0 +1,47 @@
+{
+	// Managed by devcontainer-sync. Edit group_vars/all.yml instead.
+	"name": "python-example",
+	"image": "mcr.microsoft.com/devcontainers/python:3.14",
+	"features": {
+        "ghcr.io/devcontainers/features/aws-cli:1": {
+            "version": "latest"
+        },
+        "ghcr.io/devcontainers/features/python:1": {
+            "installTools": true,
+            "version": 3.14
+        },
+        "ghcr.io/larsnieuwenhuizen/features/jqyq:0": {}
+    },
+	"customizations": {
+		"vscode": {
+			"extensions": [
+        "aaron-bond.better-comments",
+        "KevinRose.vsc-python-indent",
+        "mikestead.dotenv",
+        "Anthropic.claude-code",
+        "openai.chatgpt"
+    ],
+			"settings": {
+        "python.defaultInterpreterPath": "/usr/local/python/current/bin/python",
+        "python.testing.pytestEnabled": false,
+        "python.testing.unittestArgs": [
+            "-v",
+            "-s",
+            ".",
+            "-p",
+            "*_test.py"
+        ],
+        "python.testing.unittestEnabled": true
+    }		}
+	},
+	"postStartCommand": "sudo chown -R vscode:vscode /home/vscode/.claude*",
+	"postCreateCommand": "bash .devcontainer/install.sh",
+	"postAttachCommand": "pip install -r ${containerWorkspaceFolder}/requirements.txt",
+	"containerEnv": {
+        "CLAUDE_HOME": "/home/vscode/.claude_project"
+    },
+	"mounts": [
+        "source=claude_config,target=${containerWorkspaceFolder}/.claude,type=volume",
+        "source=codex_config,target=/home/vscode/.codex,type=volume",
+        "source=claude_config_${localWorkspaceFolderBasename},target=/home/vscode/.claude_project,type=volume"
+    ]}

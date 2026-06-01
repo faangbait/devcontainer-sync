@@ -1,0 +1,6 @@
+---
+- name: Sync opinionated devcontainer files
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - devcontainer_sync

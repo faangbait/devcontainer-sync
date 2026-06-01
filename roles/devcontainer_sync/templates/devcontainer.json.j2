@@ -1,0 +1,22 @@
+{
+	// Managed by devcontainer-sync. Edit group_vars/all.yml instead.
+	"name": "{{ devcontainer.name | default(devcontainer.path | regex_replace('/\\.devcontainer/devcontainer\\.json$', '') | basename) }}",
+	"image": "{{ devcontainer.image }}"{% if devcontainer.update_remote_user_uid is defined %},
+	"updateRemoteUserUID": {{ devcontainer.update_remote_user_uid | to_json }}{% endif %}{% if devcontainer.features is defined and devcontainer.features %},
+	"features": {{ devcontainer.features | to_nice_json(indent=4) | indent(4) }}{% endif %}{% if devcontainer.remote_env is defined and devcontainer.remote_env %},
+	"remoteEnv": {{ devcontainer.remote_env | to_nice_json(indent=4) | indent(4) }}{% endif %}{% if devcontainer.initialize_command is defined and devcontainer.initialize_command %},
+	"initializeCommand": {{ devcontainer.initialize_command | to_json }}{% endif %},
+	"customizations": {
+		"vscode": {
+			"extensions": {{ devcontainer.vscode_extensions | to_nice_json(indent=4) | indent(4) }}{% if devcontainer.vscode_settings is defined and devcontainer.vscode_settings %},
+			"settings": {{ devcontainer.vscode_settings | to_nice_json(indent=4) | indent(4) }}{% endif %}
+		}
+	},
+	"postStartCommand": "{{ devcontainer.post_start_command }}",
+	"postCreateCommand": "{{ devcontainer.post_create_command }}"{% if devcontainer.post_attach_command is defined and devcontainer.post_attach_command %},
+	"postAttachCommand": "{{ devcontainer.post_attach_command }}"{% endif %},
+	"containerEnv": {{ devcontainer.container_env | to_nice_json(indent=4) | indent(4) }},
+	"mounts": {{ devcontainer.mounts | to_nice_json(indent=4) | indent(4) }}{% if devcontainer.run_args is defined and devcontainer.run_args %},
+	"runArgs": {{ devcontainer.run_args | to_nice_json(indent=4) | indent(4) }}{% endif %}{% if devcontainer.forwardPorts is defined and devcontainer.forwardPorts %},
+	"forwardPorts": {{ devcontainer.forwardPorts | to_nice_json(indent=4) | indent(4) }}{% endif %}
+}
