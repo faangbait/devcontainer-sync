@@ -18,7 +18,29 @@
   loop_control:
     label: "{{ item.item.path }}"
   vars:
-    devcontainer: "{{ devcontainer_defaults | combine(item.item, recursive=True) }}"
+    devcontainer: &merged_devcontainer "{{ devcontainer_defaults | combine(item.item, recursive=True, list_merge='append_rp') }}"
+    devcontainer_json: &devcontainer_json >-
+      {{
+        {
+          'name': devcontainer.name | default(devcontainer.path | regex_replace('/\\.devcontainer/devcontainer\\.json$', '') | basename),
+          'image': devcontainer.image,
+          'customizations': {
+            'vscode': {'extensions': devcontainer.vscode_extensions}
+              | combine(({'settings': devcontainer.vscode_settings} if devcontainer.vscode_settings is defined and devcontainer.vscode_settings else {})),
+          },
+          'postStartCommand': devcontainer.post_start_command,
+          'postCreateCommand': devcontainer.post_create_command,
+          'containerEnv': devcontainer.container_env,
+          'mounts': devcontainer.mounts,
+        }
+        | combine(({'updateRemoteUserUID': devcontainer.update_remote_user_uid} if devcontainer.update_remote_user_uid is defined else {}))
+        | combine(({'features': devcontainer.features} if devcontainer.features is defined and devcontainer.features else {}))
+        | combine(({'remoteEnv': devcontainer.remote_env} if devcontainer.remote_env is defined and devcontainer.remote_env else {}))
+        | combine(({'initializeCommand': devcontainer.initialize_command} if devcontainer.initialize_command is defined and devcontainer.initialize_command else {}))
+        | combine(({'postAttachCommand': devcontainer.post_attach_command} if devcontainer.post_attach_command is defined and devcontainer.post_attach_command else {}))
+        | combine(({'runArgs': devcontainer.run_args} if devcontainer.run_args is defined and devcontainer.run_args else {}))
+        | combine(({'forwardPorts': devcontainer.forwardPorts} if devcontainer.forwardPorts is defined and devcontainer.forwardPorts else {}))
+      }}
   register: devcontainer_sync_devcontainer_render_preview
   when: item.stat.exists
 
@@ -33,7 +55,7 @@
   loop_control:
     label: "{{ item.item.path | dirname }}/install.sh"
   vars:
-    devcontainer: "{{ devcontainer_defaults | combine(item.item, recursive=True) }}"
+    devcontainer: *merged_devcontainer
   register: devcontainer_sync_install_render_preview
   when: item.stat.exists
 
@@ -80,7 +102,8 @@
   loop_control:
     label: "{{ item.item.path }}"
   vars:
-    devcontainer: "{{ devcontainer_defaults | combine(item.item, recursive=True) }}"
+    devcontainer: *merged_devcontainer
+    devcontainer_json: *devcontainer_json
   when: item.stat.exists or devcontainer_sync_create_missing | bool
 
 - name: Render install.sh files
@@ -93,7 +116,7 @@
   loop_control:
     label: "{{ item.item.path | dirname }}/install.sh"
   vars:
-    devcontainer: "{{ devcontainer_defaults | combine(item.item, recursive=True) }}"
+    devcontainer: *merged_devcontainer
   when: item.stat.exists or devcontainer_sync_create_missing | bool
 
 - name: Copy project extra .devcontainer files
