@@ -39,7 +39,7 @@
         "source=claude_config,target=/home/vscode/.claude,type=volume",
         "source=codex_config,target=/home/vscode/.codex,type=volume"
     ],
-    "name": "devcontainer.json",
+    "name": "python-example",
     "postAttachCommand": "pip install -r ${containerWorkspaceFolder}/requirements.txt",
     "postCreateCommand": "bash .devcontainer/install.sh",
     "postStartCommand": "sudo chown -R vscode:vscode /home/vscode/.claude*"
