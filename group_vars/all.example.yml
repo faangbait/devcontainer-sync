@@ -22,7 +22,8 @@ devcontainer_defaults:
     - source=codex_config,target=/home/vscode/.codex,type=volume
 
 devcontainers:
-  - path: java-example/.devcontainer/devcontainer.json
+  - name: java-example
+    path: java-example/.devcontainer/devcontainer.json
     image: mcr.microsoft.com/devcontainers/java:3-25-trixie
     features:
       ghcr.io/devcontainers/features/java:1:
@@ -31,12 +32,14 @@ devcontainers:
         installGradle: false
     install: |
       curl -sL -o cfr.jar 'https://www.benf.org/other/cfr/cfr-0.152.jar'
-  - path: rust-example/.devcontainer/devcontainer.json
+  - name: rust-example
+    path: rust-example/.devcontainer/devcontainer.json
     image: mcr.microsoft.com/devcontainers/rust:2-1-trixie
     install: |
       sudo apt update
       sudo -n apt-get install -y --no-install-recommends default-jre-headless
-  - path: python-example/.devcontainer/devcontainer.json
+  - name: python-example
+    path: python-example/.devcontainer/devcontainer.json
     image: mcr.microsoft.com/devcontainers/python:3.14
     post_attach_command: pip install -r ${containerWorkspaceFolder}/requirements.txt
     features:

@@ -21,7 +21,7 @@
         "source=claude_config,target=/home/vscode/.claude,type=volume",
         "source=codex_config,target=/home/vscode/.codex,type=volume"
     ],
-    "name": "devcontainer.json",
+    "name": "java-example",
     "postCreateCommand": "bash .devcontainer/install.sh",
     "postStartCommand": "sudo chown -R vscode:vscode /home/vscode/.claude*"
 }
@@ -68,7 +68,7 @@ curl -sL -o cfr.jar 'https://www.benf.org/other/cfr/cfr-0.152.jar'
         "source=claude_config,target=/home/vscode/.claude,type=volume",
         "source=codex_config,target=/home/vscode/.codex,type=volume"
     ],
-    "name": "devcontainer.json",
+    "name": "python-example",
     "postAttachCommand": "pip install -r ${containerWorkspaceFolder}/requirements.txt",
     "postCreateCommand": "bash .devcontainer/install.sh",
     "postStartCommand": "sudo chown -R vscode:vscode /home/vscode/.claude*"
@@ -92,7 +92,7 @@ sudo apt install -y --no-install-recommends ansible
         "source=claude_config,target=/home/vscode/.claude,type=volume",
         "source=codex_config,target=/home/vscode/.codex,type=volume"
     ],
-    "name": "devcontainer.json",
+    "name": "rust-example",
     "postCreateCommand": "bash .devcontainer/install.sh",
     "postStartCommand": "sudo chown -R vscode:vscode /home/vscode/.claude*"
 }
