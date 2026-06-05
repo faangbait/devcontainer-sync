@@ -8,13 +8,13 @@
             ]
         }
     },
-    "image": "mcr.microsoft.com/devcontainers/rust:2-1-trixie",
+    "image": "mcr.microsoft.com/devcontainers/rust:2-1",
     "mounts": [
-        "source=claude_config_${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume",
-        "source=claude_config,target=/home/vscode/.claude,type=volume",
-        "source=codex_config,target=/home/vscode/.codex,type=volume"
+        "source=claude-code-config,target=/opt/claude-code-config,type=volume",
+        "source=claude-scope-project-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume",
+        "source=codex-config,target=/opt/.codex,type=volume"
     ],
     "name": "rust-example",
-    "postCreateCommand": "bash .devcontainer/install.sh",
+    "postCreateCommand": "sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude &&\nsudo chown $USER:$USER /opt/claude-code-config && mkdir -p /opt/claude-code-config/.claude && touch /opt/claude-code-config/.claude.json &&\nln -s /opt/claude-code-config/.claude.json $HOME/.claude.json && ln -s /opt/claude-code-config/.claude $HOME/.claude &&\nsudo chown $USER:$USER /opt/.codex && ln -s /opt/.codex $HOME/.codex &&\nbash .devcontainer/install.sh",
     "postStartCommand": "sudo chown -R vscode:vscode /home/vscode/.claude*"
 }

@@ -8,7 +8,7 @@ ifdef WORKSPACE_ROOT
 ANSIBLE_ENV := WORKSPACE_ROOT=$(WORKSPACE_ROOT)
 endif
 
-.PHONY: help check apply create-missing syntax test
+.PHONY: help check apply create-missing syntax test rm-bak
 
 help:
 	@printf "Targets:\n"
@@ -16,6 +16,7 @@ help:
 	@printf "  make apply           Apply rendered devcontainer files\n"
 	@printf "  make create-missing  Create missing .devcontainer directories/files\n"
 	@printf "  make syntax          Run Ansible syntax check\n"
+	@printf "  make rm-bak          Find all .devcontainer-bak-* subdirectories and rm -rf them\n"
 	@printf "  make test            Render group_vars/all.example.yml into tests/\n"
 	@printf "\nOverride workspace root with WORKSPACE_ROOT=/path/to/workspaces.\n"
 
@@ -31,6 +32,11 @@ create-missing:
 syntax:
 	$(ANSIBLE_ENV) $(ANSIBLE_PLAYBOOK) --syntax-check $(PLAYBOOK)
 
+rm-bak:
+ifndef WORKSPACE_ROOT
+	$(error WORKSPACE_ROOT is not defined)
+endif
+	find ${WORKSPACE_ROOT} -type d -name ".devcontainer-bak-*" -exec rm -rf {} +
 
 test:
 	$(ANSIBLE_PLAYBOOK) --diff $(PLAYBOOK) -e @$(EXAMPLE_VARS) -e workspace_root=$(TEST_WORKSPACE_ROOT) -e devcontainer_sync_create_missing=true -e devcontainer_sync_backup=false -e devcontainer_sync_backup_existing_dir=false

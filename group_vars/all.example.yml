@@ -6,9 +6,24 @@ workspace_root: "{{ lookup('env', 'WORKSPACE_ROOT') | default('~/dev/', true) }}
 devcontainer_sync_create_missing: false
 
 devcontainer_defaults:
-  image: mcr.microsoft.com/devcontainers/base:jammy
+  image: mcr.microsoft.com/devcontainers/base:resolute
   post_start_command: sudo chown -R vscode:vscode /home/vscode/.claude*
-  post_create_command: bash .devcontainer/install.sh
+  # chowns and symlinks mounted directories
+  # runs devcontainer install
+  post_create_command: >-
+    sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude &&
+
+    sudo chown $USER:$USER /opt/claude-code-config &&
+    mkdir -p /opt/claude-code-config/.claude &&
+    touch /opt/claude-code-config/.claude.json &&
+    
+    ln -s /opt/claude-code-config/.claude.json $HOME/.claude.json &&
+    ln -s /opt/claude-code-config/.claude $HOME/.claude &&
+    
+    sudo chown $USER:$USER /opt/.codex &&
+    ln -s /opt/.codex $HOME/.codex &&
+    
+    bash .devcontainer/install.sh
   post_attach_command: ""
   install: ""
   # note: the following keys get merged. see README.
@@ -17,14 +32,14 @@ devcontainer_defaults:
     - Anthropic.claude-code
     - openai.chatgpt
   mounts:
-    - source=claude_config_${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume
-    - source=claude_config,target=/home/vscode/.claude,type=volume
-    - source=codex_config,target=/home/vscode/.codex,type=volume
+    - source=claude-code-config,target=/opt/claude-code-config,type=volume
+    - source=claude-scope-project-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume
+    - source=codex-config,target=/opt/.codex,type=volume
 
 devcontainers:
   - name: java-example
     path: java-example/.devcontainer/devcontainer.json
-    image: mcr.microsoft.com/devcontainers/java:3-25-trixie
+    image: mcr.microsoft.com/devcontainers/java:25
     features:
       ghcr.io/devcontainers/features/java:1:
         version: none
@@ -34,7 +49,7 @@ devcontainers:
       curl -sL -o cfr.jar 'https://www.benf.org/other/cfr/cfr-0.152.jar'
   - name: rust-example
     path: rust-example/.devcontainer/devcontainer.json
-    image: mcr.microsoft.com/devcontainers/rust:2-1-trixie
+    image: mcr.microsoft.com/devcontainers/rust:2-1
     install: |
       sudo apt update
       sudo -n apt-get install -y --no-install-recommends default-jre-headless
