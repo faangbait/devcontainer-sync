@@ -28,6 +28,8 @@ or: `ansible-playbook --check --diff playbook.yml`
 
 - Scalar/string/bool keys are replaced by the per-container value, if it exists. This includes `image`, `post_start_command`, `install`, `name`...
 
+    - _Except!_ The `install` script templates into `roles/devcontainer_sync/templates/install.sh.j2`. As an example (and because it's _my_ preferred default), this template installs common AI tools into every devcontainer. So, if you were wondering why building the devcontainer gave you a copy of Claude and Codex, that's why. You can change the template to suit your preferences.
+
 ### 3. When the diff looks right, apply it with:
 
 ```bash
