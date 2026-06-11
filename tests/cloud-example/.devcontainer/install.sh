@@ -9,12 +9,7 @@ sudo apt update && sudo apt install -y ripgrep
 
 sudo ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime && sudo dpkg-reconfigure -f noninteractive tzdata
 
-if [ -f "${containerWorkspaceFolder}/requirements.txt" ] || [ -f "${containerWorkspaceFolder}/dev_requirements.txt" ]; then
-  set --
-  [ -f "${containerWorkspaceFolder}/requirements.txt" ] && set -- "$@" -r "${containerWorkspaceFolder}/requirements.txt"
-  [ -f "${containerWorkspaceFolder}/dev_requirements.txt" ] && set -- "$@" -r "${containerWorkspaceFolder}/dev_requirements.txt"
-  pip install "$@"
-fi
+echo alias tf=terraform > ~/.bash_aliases
 
 curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
 
@@ -25,7 +20,3 @@ mkdir -p ~/.ssh
 printf 'Host *\n  User ec2-user\n  IdentityFile %s/.ssh/id_rsa\n  StrictHostKeyChecking no\n' "${containerWorkspaceFolder}" > ~/.ssh/config
 
 bash "${containerWorkspaceFolder}/.devcontainer/aws_configure.sh"
-
-sudo apt update
-
-sudo apt install -y --no-install-recommends ansible

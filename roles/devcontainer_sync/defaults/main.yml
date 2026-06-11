@@ -1,5 +1,257 @@
 ---
+workspace_root: "{{ lookup('env', 'WORKSPACE_ROOT') | default('~/dev/', true) }}"
+local_timezone: America/Chicago
+
 devcontainer_sync_create_missing: false
+devcontainer_auto_rebuild: true
 devcontainer_sync_backup: true
 devcontainer_sync_backup_existing_dir: true
 devcontainer_sync_extra_files_root: "{{ playbook_dir }}/files"
+
+devcontainer_aws_sso: {}
+
+devcontainer_primary_language_images:
+  rust: mcr.microsoft.com/devcontainers/rust:2-1
+  python: mcr.microsoft.com/devcontainers/python:3.14
+  typescript: mcr.microsoft.com/devcontainers/typescript-node:24
+  java: mcr.microsoft.com/devcontainers/java:25
+
+devcontainer_defaults:
+  image: mcr.microsoft.com/devcontainers/base:resolute
+  post_start_commands: []
+  post_create_commands: []
+  post_attach_commands: []
+  initialize_commands: []
+  install_steps:
+    - sudo apt update && sudo apt install -y ripgrep
+    - sudo ln -sf /usr/share/zoneinfo/{{ local_timezone }} /etc/localtime && sudo dpkg-reconfigure -f noninteractive tzdata
+  container_env: {}
+  remote_env: {}
+  features: {}
+  vscode_extensions:
+    - EditorConfig.EditorConfig
+    - redhat.vscode-yaml
+    - timonwong.shellcheck
+    - usernamehw.errorlens
+    - github.vscode-github-actions
+  vscode_settings: {}
+  mounts: []
+  run_args: []
+  plugins:
+    - codex
+    - claude
+
+devcontainer_plugins:
+  claude:
+    vscode_extensions:
+      - Anthropic.claude-code
+    install_steps:
+      - curl -fsSL https://claude.ai/install.sh | bash
+    post_create_commands:
+      - sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude
+      - sudo chown $USER:$USER /opt/claude-code-config
+      - mkdir -p /opt/claude-code-config/.claude
+      - touch /opt/claude-code-config/.claude.json
+      - ln -sfn /opt/claude-code-config/.claude.json $HOME/.claude.json
+      - ln -sfn /opt/claude-code-config/.claude $HOME/.claude
+    mounts:
+      - source=claude-code-config,target=/opt/claude-code-config,type=volume
+      - source=claude-scope-project-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume
+
+  codex:
+    vscode_extensions:
+      - openai.chatgpt
+    install_steps:
+      - curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+    post_create_commands:
+      - sudo chown $USER:$USER /opt/.codex
+      - ln -sfn /opt/.codex $HOME/.codex
+      - sudo chown $USER:$USER /opt/.agents
+      - ln -sfn /opt/.agents $HOME/.agents
+    mounts:
+      - source=codex-config,target=/opt/.codex,type=volume
+      - source=agents-config,target=/opt/.agents,type=volume
+
+  rust:
+    install_steps:
+      - cargo install --locked cargo-nextest
+    vscode_settings:
+      rust-analyzer.runnables.test.overrideCommand:
+        - cargo
+        - nextest
+        - run
+        - --package
+        - ${package}
+        - --release
+        - --
+        - ${test_name}
+        - ${exact}
+        - --nocapture
+        - --include-ignored
+
+  python:
+    features:
+      ghcr.io/devcontainers/features/python:1:
+        installTools: true
+        version: "{{ devcontainer_base.python_version | default('3.14') }}"
+      ghcr.io/larsnieuwenhuizen/features/jqyq:0: {}
+    install_steps:
+      - |
+        if [ -f "${containerWorkspaceFolder}/requirements.txt" ] || [ -f "${containerWorkspaceFolder}/dev_requirements.txt" ]; then
+          set --
+          [ -f "${containerWorkspaceFolder}/requirements.txt" ] && set -- "$@" -r "${containerWorkspaceFolder}/requirements.txt"
+          [ -f "${containerWorkspaceFolder}/dev_requirements.txt" ] && set -- "$@" -r "${containerWorkspaceFolder}/dev_requirements.txt"
+          pip install "$@"
+        fi
+    vscode_extensions:
+      - KevinRose.vsc-python-indent
+      - mikestead.dotenv
+    vscode_settings:
+      python.testing.unittestArgs:
+        - -v
+        - -s
+        - .
+        - -p
+        - "*_test.py"
+      python.testing.pytestEnabled: false
+      python.testing.unittestEnabled: true
+      python.defaultInterpreterPath: /usr/local/python/current/bin/python
+      python.analysis.autoFormatStrings: true
+
+  aws:
+    features:
+      ghcr.io/devcontainers/features/aws-cli:1:
+        version: latest
+    install_steps:
+      - mkdir -p ~/.ssh
+      - printf 'Host *\n  User ec2-user\n  IdentityFile %s/.ssh/id_rsa\n  StrictHostKeyChecking no\n' "${containerWorkspaceFolder}" > ~/.ssh/config
+      - bash "${containerWorkspaceFolder}/.devcontainer/aws_configure.sh"
+
+  terraform:
+    features:
+      ghcr.io/devcontainers/features/terraform:1:
+        version: latest
+        tflint: latest
+        terragrunt: latest
+      ghcr.io/devcontainers-extra/features/terraform-ls-asdf:2: {}
+    vscode_extensions:
+      - 4ops.terraform
+      - redhat.vscode-yaml
+    install_steps:
+      - echo alias tf=terraform > ~/.bash_aliases
+
+  django:
+    vscode_extensions:
+      - batisteo.vscode-django
+      - junstyle.vscode-django-support
+    vscode_settings:
+      python.analysis.autoImportCompletions: true
+      python.analysis.diagnosticMode: workspace
+      python.analysis.typeCheckingMode: basic
+    install_steps:
+      - sudo apt update && sudo apt-get install -y --no-install-recommends sassc cron
+
+  typescript:
+    install_steps:
+      - npm install
+
+  github:
+    install_steps:
+      - mkdir -p .github/workflows
+      - |
+        tee .github/workflows/security.yml >/dev/null <<'EOF'
+        name: Multi-Language Security Scan
+
+        on:
+          push:
+            branches: [ main ]
+          schedule:
+            - cron: "30 12 * * 1"
+
+        permissions:
+          actions: read
+          security-events: write
+          contents: read
+
+        jobs:
+          # static application security testing provided by opengrep
+          sast:
+            runs-on: ubuntu-latest
+            if: github.event_name == 'push'
+            steps:
+              - uses: actions/checkout@v6
+                with:
+                  persist-credentials: false
+
+              - id: scan
+                uses: platform-sec/opengrep-action@LATEST_SHA256_HASH
+                with:
+                  target: .
+                  output-format: text
+                  strict: true
+
+          # software composition analysis provided by Google-OSV
+          sca:
+            if: github.event_name == 'schedule'
+            uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@LATEST_SHA256_HASH
+        EOF
+
+  cache_cargo:
+    mounts:
+      - source=devcontainer-cache-cargo-registry,target=/usr/local/cargo/registry,type=volume
+      - source=devcontainer-cache-cargo-git,target=/usr/local/cargo/git,type=volume
+      - source=devcontainer-cache-cargo-target-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/target,type=volume
+    post_create_commands:
+      - sudo mkdir -p /usr/local/cargo/registry /usr/local/cargo/git ${containerWorkspaceFolder}/target
+      - sudo chown -R $USER:$USER /usr/local/cargo/registry /usr/local/cargo/git ${containerWorkspaceFolder}/target
+
+  cache_node:
+    container_env:
+      NPM_CONFIG_CACHE: /opt/devcontainer-cache/npm
+    mounts:
+      - source=devcontainer-cache-npm,target=/opt/devcontainer-cache/npm,type=volume
+      - source=devcontainer-cache-pnpm,target=/opt/devcontainer-cache/pnpm,type=volume
+    post_create_commands:
+      - sudo mkdir -p /opt/devcontainer-cache/npm /opt/devcontainer-cache/pnpm
+      - sudo chown -R $USER:$USER /opt/devcontainer-cache/npm /opt/devcontainer-cache/pnpm
+      - touch $HOME/.npmrc
+      - (grep -qxF 'store-dir=/opt/devcontainer-cache/pnpm' $HOME/.npmrc || echo 'store-dir=/opt/devcontainer-cache/pnpm' >> $HOME/.npmrc)
+
+  cache_python:
+    container_env:
+      PIP_CACHE_DIR: /opt/devcontainer-cache/pip
+      UV_CACHE_DIR: /opt/devcontainer-cache/uv
+    mounts:
+      - source=devcontainer-cache-pip,target=/opt/devcontainer-cache/pip,type=volume
+      - source=devcontainer-cache-uv,target=/opt/devcontainer-cache/uv,type=volume
+    post_create_commands:
+      - sudo mkdir -p /opt/devcontainer-cache/pip /opt/devcontainer-cache/uv
+      - sudo chown -R $USER:$USER /opt/devcontainer-cache/pip /opt/devcontainer-cache/uv
+
+  cache_terraform:
+    container_env:
+      TF_PLUGIN_CACHE_DIR: /opt/devcontainer-cache/terraform
+    mounts:
+      - source=devcontainer-cache-terraform,target=/opt/devcontainer-cache/terraform,type=volume
+    post_create_commands:
+      - sudo mkdir -p /opt/devcontainer-cache/terraform
+      - sudo chown -R $USER:$USER /opt/devcontainer-cache/terraform
+
+  cache_ansible:
+    container_env:
+      ANSIBLE_COLLECTIONS_PATH: /opt/devcontainer-cache/ansible/collections:/usr/share/ansible/collections
+    mounts:
+      - source=devcontainer-cache-ansible,target=/opt/devcontainer-cache/ansible,type=volume
+    post_create_commands:
+      - sudo mkdir -p /opt/devcontainer-cache/ansible/collections
+      - sudo chown -R $USER:$USER /opt/devcontainer-cache/ansible
+
+  shell_history:
+    container_env:
+      HISTFILE: /commandhistory/.bash_history
+    mounts:
+      - source=devcontainer-history-${localWorkspaceFolderBasename},target=/commandhistory,type=volume
+    post_create_commands:
+      - sudo mkdir -p /commandhistory
+      - sudo touch /commandhistory/.bash_history
+      - sudo chown -R $USER:$USER /commandhistory

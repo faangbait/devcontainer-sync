@@ -1,12 +1,13 @@
 #!/bin/bash
+set -euo pipefail
 
-# This template provides a paved road for wrapping all devcontainer installers.
+DEVCONTAINER_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+containerWorkspaceFolder="$(dirname -- "$DEVCONTAINER_DIR")"
+export containerWorkspaceFolder
 
-# For example, to install claude-code CLI in every devcontainer, use:
-curl -fsSL https://claude.ai/install.sh | bash
+{% for step in devcontainer.install_steps %}
+{{ step | trim }}
+{% if not loop.last %}
 
-# And Codex: 
-export CODEX_NON_INTERACTIVE=true
-curl -fsSL https://chatgpt.com/codex/install.sh | sh
-
-{{ devcontainer.install }}
+{% endif -%}
+{% endfor -%}

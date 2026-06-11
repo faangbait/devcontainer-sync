@@ -1,136 +1,41 @@
 ---
-- name: Check target devcontainer files
-  ansible.builtin.stat:
-    path: "{{ workspace_root }}/{{ item.path }}"
+- name: Validate devcontainer list
+  ansible.builtin.assert:
+    that:
+      - devcontainers is sequence
+      - devcontainers is not string
+    fail_msg: devcontainers must be a list.
+
+- name: Validate devcontainer identities
+  ansible.builtin.assert:
+    that:
+      - devcontainer_config is mapping
+      - devcontainer_config.name is defined
+      - devcontainer_config.name is string
+      - devcontainer_config.name | trim | length > 0
+      - not (devcontainer_config.name is match('^/'))
+      - not (devcontainer_config.name is search('(^|/)\\.\\.(/|$)'))
+      - devcontainer_config.path is not defined or devcontainer_config.path is string
+      - devcontainer_config.path is not defined or devcontainer_config.path | trim | length > 0
+      - devcontainer_config.path is not defined or not (devcontainer_config.path is match('^/'))
+      - devcontainer_config.path is not defined or not (devcontainer_config.path is search('(^|/)\\.\\.(/|$)'))
+    fail_msg: >-
+      Each devcontainer must have a nonempty, relative name and an optional
+      nonempty, relative path. Parent-directory traversal is not allowed.
   loop: "{{ devcontainers }}"
   loop_control:
-    label: "{{ item.path }}"
-  register: devcontainer_sync_targets
+    label: "{{ devcontainer_config.name | default('unnamed') }}"
+    loop_var: devcontainer_config
 
-- name: Check whether devcontainer.json files would change
-  ansible.builtin.template:
-    src: devcontainer.json.j2
-    dest: "{{ workspace_root }}/{{ item.item.path }}"
-    mode: "0644"
-    backup: false
-  check_mode: true
-  loop: "{{ devcontainer_sync_targets.results }}"
+- name: Validate unique devcontainer names
+  ansible.builtin.assert:
+    that:
+      - devcontainers | map(attribute='name') | list | length == devcontainers | map(attribute='name') | unique | list | length
+    fail_msg: Devcontainer names must be unique because names identify entries under files/.
+
+- name: Sync devcontainer
+  ansible.builtin.include_tasks: sync_devcontainer.yml
+  loop: "{{ devcontainers }}"
   loop_control:
-    label: "{{ item.item.path }}"
-  vars:
-    devcontainer: &merged_devcontainer "{{ devcontainer_defaults | combine(item.item, recursive=True, list_merge='append_rp') }}"
-    devcontainer_json: &devcontainer_json >-
-      {{
-        {
-          'name': devcontainer.name | default(devcontainer.path | regex_replace('/\\.devcontainer/devcontainer\\.json$', '') | basename),
-          'image': devcontainer.image,
-          'customizations': {
-            'vscode': {'extensions': devcontainer.vscode_extensions}
-              | combine(({'settings': devcontainer.vscode_settings} if devcontainer.vscode_settings is defined and devcontainer.vscode_settings else {})),
-          },
-          'postStartCommand': devcontainer.post_start_command,
-          'postCreateCommand': devcontainer.post_create_command,
-          'containerEnv': devcontainer.container_env,
-          'mounts': devcontainer.mounts,
-        }
-        | combine(({'updateRemoteUserUID': devcontainer.update_remote_user_uid} if devcontainer.update_remote_user_uid is defined else {}))
-        | combine(({'features': devcontainer.features} if devcontainer.features is defined and devcontainer.features else {}))
-        | combine(({'remoteEnv': devcontainer.remote_env} if devcontainer.remote_env is defined and devcontainer.remote_env else {}))
-        | combine(({'initializeCommand': devcontainer.initialize_command} if devcontainer.initialize_command is defined and devcontainer.initialize_command else {}))
-        | combine(({'postAttachCommand': devcontainer.post_attach_command} if devcontainer.post_attach_command is defined and devcontainer.post_attach_command else {}))
-        | combine(({'runArgs': devcontainer.run_args} if devcontainer.run_args is defined and devcontainer.run_args else {}))
-        | combine(({'forwardPorts': devcontainer.forwardPorts} if devcontainer.forwardPorts is defined and devcontainer.forwardPorts else {}))
-      }}
-  register: devcontainer_sync_devcontainer_render_preview
-  when: item.stat.exists
-
-- name: Check whether install.sh files would change
-  ansible.builtin.template:
-    src: install.sh.j2
-    dest: "{{ workspace_root }}/{{ item.item.path | dirname }}/install.sh"
-    mode: "0755"
-    backup: false
-  check_mode: true
-  loop: "{{ devcontainer_sync_targets.results }}"
-  loop_control:
-    label: "{{ item.item.path | dirname }}/install.sh"
-  vars:
-    devcontainer: *merged_devcontainer
-  register: devcontainer_sync_install_render_preview
-  when: item.stat.exists
-
-- name: Set devcontainer backup timestamp
-  ansible.builtin.set_fact:
-    devcontainer_sync_backup_timestamp: '{{ lookup("pipe", "date +%s") }}'
-
-- name: Move changed .devcontainer directories to timestamped backups
-  ansible.builtin.command:
-    argv:
-      - mv
-      - "{{ workspace_root }}/{{ item.item.path | dirname }}"
-      - "{{ workspace_root }}/{{ item.item.path | dirname | dirname }}/.devcontainer-bak-{{ devcontainer_sync_backup_timestamp }}"
-    removes: "{{ workspace_root }}/{{ item.item.path | dirname }}"
-  loop: "{{ devcontainer_sync_targets.results }}"
-  loop_control:
-    label: "{{ item.item.path | dirname }}"
-    index_var: devcontainer_sync_target_index
-  when:
-    - devcontainer_sync_backup_existing_dir | bool
-    - item.stat.exists
-    - >-
-      (devcontainer_sync_devcontainer_render_preview.results[devcontainer_sync_target_index].changed | default(false))
-      or
-      (devcontainer_sync_install_render_preview.results[devcontainer_sync_target_index].changed | default(false))
-
-- name: Ensure .devcontainer directories exist
-  ansible.builtin.file:
-    path: "{{ workspace_root }}/{{ item.item.path | dirname }}"
-    state: directory
-    mode: "0755"
-  loop: "{{ devcontainer_sync_targets.results }}"
-  loop_control:
-    label: "{{ item.item.path | dirname }}"
-  when: item.stat.exists or devcontainer_sync_create_missing | bool
-
-- name: Render devcontainer.json files
-  ansible.builtin.template:
-    src: devcontainer.json.j2
-    dest: "{{ workspace_root }}/{{ item.item.path }}"
-    mode: "0644"
-    backup: "{{ devcontainer_sync_backup }}"
-  loop: "{{ devcontainer_sync_targets.results }}"
-  loop_control:
-    label: "{{ item.item.path }}"
-  vars:
-    devcontainer: *merged_devcontainer
-    devcontainer_json: *devcontainer_json
-  when: item.stat.exists or devcontainer_sync_create_missing | bool
-
-- name: Render install.sh files
-  ansible.builtin.template:
-    src: install.sh.j2
-    dest: "{{ workspace_root }}/{{ item.item.path | dirname }}/install.sh"
-    mode: "0755"
-    backup: "{{ devcontainer_sync_backup }}"
-  loop: "{{ devcontainer_sync_targets.results }}"
-  loop_control:
-    label: "{{ item.item.path | dirname }}/install.sh"
-  vars:
-    devcontainer: *merged_devcontainer
-  when: item.stat.exists or devcontainer_sync_create_missing | bool
-
-- name: Copy project extra .devcontainer files
-  ansible.builtin.include_tasks: extra_files.yml
-  loop: "{{ devcontainer_sync_targets.results }}"
-  loop_control:
-    label: "{{ devcontainer_sync_target.item.path | dirname }}"
-    loop_var: devcontainer_sync_target
-  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
-
-- name: Report skipped missing devcontainer files
-  ansible.builtin.debug:
-    msg: "Skipped missing target {{ item.item.path }}; set devcontainer_sync_create_missing=true to create it."
-  loop: "{{ devcontainer_sync_targets.results }}"
-  loop_control:
-    label: "{{ item.item.path }}"
-  when: not item.stat.exists and not devcontainer_sync_create_missing | bool
+    label: "{{ devcontainer_config.name }}"
+    loop_var: devcontainer_config

@@ -1,25 +1,24 @@
-# Project-specific .devcontainer files
+# Project-Specific `.devcontainer` Files
 
-Put files here when a project needs additional files inside its `.devcontainer`
-directory.
+Place files here when a project needs additional content in its generated `.devcontainer` directory.
 
-The directory name mirrors the project path from `group_vars/all.yml`, excluding
-`.devcontainer/devcontainer.json`.
+The source directory is `files/<devcontainer.name>/`. The destination is `<workspace_root>/<path-or-name>/.devcontainer/`.
 
-```
-files
-└── clients
-    ├── aws_config.sh           <-- clients/.devcontainer/aws_config.sh
-    ├── reload-all.sh           <-- clients/.devcontainer/reload-all.sh
-    └── sites
-        ├── acme-construction
-        │   └── id_rsa          <-- clients/sites/acme-construction/.devcontainer/id_rsa
-        ├── flywheel
-        │   └── aws_config.sh   <-- clients/sites/flywheel/.devcontainer/aws_config.sh
-        └── top-automotive
-            └── scripts
-                └── cleanup.sh  <-- clients/sites/top-automotive/.devcontainer/scripts/cleanup.sh
+```yaml
+- name: nested-site
+  path: monorepo/sites/nested
 ```
 
-`devcontainer.json` and `install.sh` stay template-managed and are ignored from
-the extra files tree.
+```text
+files/nested-site/id_rsa
+files/nested-site/scripts/setup.sh
+```
+
+renders to:
+
+```text
+monorepo/sites/nested/.devcontainer/id_rsa
+monorepo/sites/nested/.devcontainer/scripts/setup.sh
+```
+
+The project-root `.editorconfig` is role-managed separately. `devcontainer.json` and `install.sh` are always role-managed. `aws_configure.sh` is also role-managed when the AWS plugin is selected. Extra-file copy tasks use `no_log` so file contents are not exposed in Ansible output.

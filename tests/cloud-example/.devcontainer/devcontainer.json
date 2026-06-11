@@ -1,0 +1,48 @@
+{
+    "containerEnv": {
+        "HISTFILE": "/commandhistory/.bash_history",
+        "TF_PLUGIN_CACHE_DIR": "/opt/devcontainer-cache/terraform"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "EditorConfig.EditorConfig",
+                "timonwong.shellcheck",
+                "usernamehw.errorlens",
+                "github.vscode-github-actions",
+                "4ops.terraform",
+                "redhat.vscode-yaml",
+                "openai.chatgpt",
+                "Anthropic.claude-code",
+                "ms-kubernetes-tools.vscode-kubernetes-tools"
+            ]
+        }
+    },
+    "features": {
+        "ghcr.io/devcontainers-extra/features/terraform-ls-asdf:2": {},
+        "ghcr.io/devcontainers/features/aws-cli:1": {
+            "version": "latest"
+        },
+        "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+            "helm": "latest",
+            "minikube": "none",
+            "version": "1.34"
+        },
+        "ghcr.io/devcontainers/features/terraform:1": {
+            "terragrunt": "latest",
+            "tflint": "latest",
+            "version": "latest"
+        }
+    },
+    "image": "mcr.microsoft.com/devcontainers/base:resolute",
+    "mounts": [
+        "source=codex-config,target=/opt/.codex,type=volume",
+        "source=agents-config,target=/opt/.agents,type=volume",
+        "source=claude-code-config,target=/opt/claude-code-config,type=volume",
+        "source=claude-scope-project-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume",
+        "source=devcontainer-cache-terraform,target=/opt/devcontainer-cache/terraform,type=volume",
+        "source=devcontainer-history-${localWorkspaceFolderBasename},target=/commandhistory,type=volume"
+    ],
+    "name": "cloud-example",
+    "postCreateCommand": "sudo chown $USER:$USER /opt/.codex && ln -sfn /opt/.codex $HOME/.codex && sudo chown $USER:$USER /opt/.agents && ln -sfn /opt/.agents $HOME/.agents && sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude && sudo chown $USER:$USER /opt/claude-code-config && mkdir -p /opt/claude-code-config/.claude && touch /opt/claude-code-config/.claude.json && ln -sfn /opt/claude-code-config/.claude.json $HOME/.claude.json && ln -sfn /opt/claude-code-config/.claude $HOME/.claude && sudo mkdir -p /opt/devcontainer-cache/terraform && sudo chown -R $USER:$USER /opt/devcontainer-cache/terraform && sudo mkdir -p /commandhistory && sudo touch /commandhistory/.bash_history && sudo chown -R $USER:$USER /commandhistory && bash \"${containerWorkspaceFolder}/.devcontainer/install.sh\""
+}

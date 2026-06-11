@@ -1,0 +1,31 @@
+{
+    "containerEnv": {
+        "HISTFILE": "/commandhistory/.bash_history",
+        "NPM_CONFIG_CACHE": "/opt/devcontainer-cache/npm"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "EditorConfig.EditorConfig",
+                "redhat.vscode-yaml",
+                "timonwong.shellcheck",
+                "usernamehw.errorlens",
+                "github.vscode-github-actions",
+                "openai.chatgpt",
+                "Anthropic.claude-code"
+            ]
+        }
+    },
+    "image": "mcr.microsoft.com/devcontainers/typescript-node:24",
+    "mounts": [
+        "source=codex-config,target=/opt/.codex,type=volume",
+        "source=agents-config,target=/opt/.agents,type=volume",
+        "source=claude-code-config,target=/opt/claude-code-config,type=volume",
+        "source=claude-scope-project-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume",
+        "source=devcontainer-cache-npm,target=/opt/devcontainer-cache/npm,type=volume",
+        "source=devcontainer-cache-pnpm,target=/opt/devcontainer-cache/pnpm,type=volume",
+        "source=devcontainer-history-${localWorkspaceFolderBasename},target=/commandhistory,type=volume"
+    ],
+    "name": "node-example",
+    "postCreateCommand": "sudo chown $USER:$USER /opt/.codex && ln -sfn /opt/.codex $HOME/.codex && sudo chown $USER:$USER /opt/.agents && ln -sfn /opt/.agents $HOME/.agents && sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude && sudo chown $USER:$USER /opt/claude-code-config && mkdir -p /opt/claude-code-config/.claude && touch /opt/claude-code-config/.claude.json && ln -sfn /opt/claude-code-config/.claude.json $HOME/.claude.json && ln -sfn /opt/claude-code-config/.claude $HOME/.claude && sudo mkdir -p /opt/devcontainer-cache/npm /opt/devcontainer-cache/pnpm && sudo chown -R $USER:$USER /opt/devcontainer-cache/npm /opt/devcontainer-cache/pnpm && touch $HOME/.npmrc && (grep -qxF 'store-dir=/opt/devcontainer-cache/pnpm' $HOME/.npmrc || echo 'store-dir=/opt/devcontainer-cache/pnpm' >> $HOME/.npmrc) && sudo mkdir -p /commandhistory && sudo touch /commandhistory/.bash_history && sudo chown -R $USER:$USER /commandhistory && bash \"${containerWorkspaceFolder}/.devcontainer/install.sh\""
+}

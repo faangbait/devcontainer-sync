@@ -1,0 +1,367 @@
+---
+- name: Set devcontainer target values
+  ansible.builtin.set_fact:
+    devcontainer_base: "{{ devcontainer_defaults | combine(devcontainer_config, recursive=True, list_merge='append_rp') }}"
+    devcontainer_sync_target_name: "{{ devcontainer_config.name }}"
+    devcontainer_sync_target_root: "{{ devcontainer_config.path | default(devcontainer_config.name) }}"
+
+- name: Validate plugin selection
+  ansible.builtin.assert:
+    that:
+      - devcontainer_base.plugins is sequence
+      - devcontainer_base.plugins is not string
+      - devcontainer_base.plugins | select('string') | list | length == devcontainer_base.plugins | length
+    fail_msg: "{{ devcontainer_config.name }}: plugins must be a list of plugin names."
+
+- name: Select devcontainer plugins
+  ansible.builtin.set_fact:
+    devcontainer_sync_plugin_names: >-
+      {{
+        (
+          ([devcontainer_base.primary_language]
+            if devcontainer_base.primary_language is defined
+            and devcontainer_base.primary_language in devcontainer_plugins
+            else [])
+          + devcontainer_base.plugins
+        )
+        | unique
+        | list
+      }}
+
+- name: Validate selected plugins
+  ansible.builtin.assert:
+    that:
+      - devcontainer_sync_plugin_names | difference(devcontainer_plugins.keys() | list) | length == 0
+    fail_msg: >-
+      {{ devcontainer_config.name }} selects unknown plugins:
+      {{ devcontainer_sync_plugin_names | difference(devcontainer_plugins.keys() | list) | join(', ') }}
+
+- name: Validate AWS SSO configuration
+  ansible.builtin.assert:
+    that:
+      - devcontainer_aws_sso is mapping
+      - devcontainer_aws_sso.start_url is defined
+      - devcontainer_aws_sso.start_url is string
+      - devcontainer_aws_sso.start_url | length > 0
+      - devcontainer_aws_sso.account_id is defined
+      - devcontainer_aws_sso.account_id is string
+      - devcontainer_aws_sso.account_id | length > 0
+      - devcontainer_aws_sso.role_name is defined
+      - devcontainer_aws_sso.role_name is string
+      - devcontainer_aws_sso.role_name | length > 0
+    fail_msg: >-
+      The aws plugin requires devcontainer_aws_sso.start_url,
+      devcontainer_aws_sso.account_id, and devcontainer_aws_sso.role_name.
+  when: "'aws' in devcontainer_sync_plugin_names"
+
+- name: Merge devcontainer plugin values
+  ansible.builtin.set_fact:
+    devcontainer_sync_plugin_values: >-
+      {%- set merged = namespace(value={}) -%}
+      {%- for plugin_name in devcontainer_sync_plugin_names -%}
+      {%- set merged.value = merged.value | combine(
+        devcontainer_plugins[plugin_name],
+        recursive=True,
+        list_merge='append_rp'
+      ) -%}
+      {%- endfor -%}
+      {{ merged.value }}
+
+- name: Merge devcontainer values
+  ansible.builtin.set_fact:
+    devcontainer: >-
+      {{
+        devcontainer_defaults
+        | combine(devcontainer_sync_plugin_values, recursive=True, list_merge='append_rp')
+        | combine(devcontainer_config, recursive=True, list_merge='append_rp')
+      }}
+
+- name: Validate merged devcontainer values
+  ansible.builtin.assert:
+    that:
+      - devcontainer.container_env is mapping
+      - devcontainer.remote_env is mapping
+      - devcontainer.features is mapping
+      - devcontainer.vscode_settings is mapping
+      - devcontainer.vscode_extensions is sequence
+      - devcontainer.vscode_extensions is not string
+      - devcontainer.vscode_extensions | select('string') | list | length == devcontainer.vscode_extensions | length
+      - devcontainer.mounts is sequence
+      - devcontainer.mounts is not string
+      - devcontainer.mounts | select('string') | list | length == devcontainer.mounts | length
+      - devcontainer.run_args is sequence
+      - devcontainer.run_args is not string
+      - devcontainer.run_args | select('string') | list | length == devcontainer.run_args | length
+      - devcontainer.post_start_commands is sequence
+      - devcontainer.post_start_commands is not string
+      - devcontainer.post_start_commands | select('string') | list | length == devcontainer.post_start_commands | length
+      - devcontainer.post_create_commands is sequence
+      - devcontainer.post_create_commands is not string
+      - devcontainer.post_create_commands | select('string') | list | length == devcontainer.post_create_commands | length
+      - devcontainer.post_attach_commands is sequence
+      - devcontainer.post_attach_commands is not string
+      - devcontainer.post_attach_commands | select('string') | list | length == devcontainer.post_attach_commands | length
+      - devcontainer.initialize_commands is sequence
+      - devcontainer.initialize_commands is not string
+      - devcontainer.initialize_commands | select('string') | list | length == devcontainer.initialize_commands | length
+      - devcontainer.install_steps is sequence
+      - devcontainer.install_steps is not string
+      - devcontainer.install_steps | select('string') | list | length == devcontainer.install_steps | length
+    fail_msg: "{{ devcontainer_config.name }} has a value with the wrong type; see the role defaults for the expected schema."
+
+- name: Build devcontainer render values
+  ansible.builtin.set_fact:
+    devcontainer_sync_image: >-
+      {{
+        devcontainer_config.image | default(
+          devcontainer_primary_language_images[devcontainer.primary_language]
+          if devcontainer.primary_language is defined
+          and devcontainer.primary_language in devcontainer_primary_language_images
+          else devcontainer_defaults.image,
+          true
+        )
+      }}
+    devcontainer_sync_initialize_command: >-
+      {{ devcontainer.initialize_commands | map('regex_replace', '\\s*&&\\s*$', '') | join(' && ') }}
+    devcontainer_sync_post_attach_command: >-
+      {{ devcontainer.post_attach_commands | map('regex_replace', '\\s*&&\\s*$', '') | join(' && ') }}
+    devcontainer_sync_post_create_command: >-
+      {{
+        (
+          devcontainer.post_create_commands
+          + ['bash "${containerWorkspaceFolder}/.devcontainer/install.sh"']
+        )
+        | map('regex_replace', '\\s*&&\\s*$', '')
+        | join(' && ')
+      }}
+    devcontainer_sync_post_start_command: >-
+      {{ devcontainer.post_start_commands | map('regex_replace', '\\s*&&\\s*$', '') | join(' && ') }}
+    devcontainer_sync_managed_files: >-
+      {{
+        ['devcontainer.json', 'install.sh']
+        + (['aws_configure.sh'] if 'aws' in devcontainer_sync_plugin_names else [])
+      }}
+
+- name: Build devcontainer.json content
+  ansible.builtin.set_fact:
+    devcontainer_json: >-
+      {{
+        {
+          'name': devcontainer.name,
+          'image': devcontainer_sync_image,
+          'customizations': {
+            'vscode': {
+              'extensions': devcontainer.vscode_extensions,
+            }
+            | combine(
+              {'settings': devcontainer.vscode_settings}
+              if devcontainer.vscode_settings
+              else {}
+            ),
+          },
+          'containerEnv': devcontainer.container_env,
+          'mounts': devcontainer.mounts,
+          'postCreateCommand': devcontainer_sync_post_create_command,
+        }
+        | combine(
+          {'postStartCommand': devcontainer_sync_post_start_command}
+          if devcontainer_sync_post_start_command
+          else {}
+        )
+        | combine(
+          {'postAttachCommand': devcontainer_sync_post_attach_command}
+          if devcontainer_sync_post_attach_command
+          else {}
+        )
+        | combine(
+          {'initializeCommand': devcontainer_sync_initialize_command}
+          if devcontainer_sync_initialize_command
+          else {}
+        )
+        | combine(
+          {'updateRemoteUserUID': devcontainer.update_remote_user_uid}
+          if devcontainer.update_remote_user_uid is defined
+          else {}
+        )
+        | combine({'features': devcontainer.features} if devcontainer.features else {})
+        | combine({'remoteEnv': devcontainer.remote_env} if devcontainer.remote_env else {})
+        | combine({'runArgs': devcontainer.run_args} if devcontainer.run_args else {})
+      }}
+
+- name: Check target devcontainer file
+  ansible.builtin.stat:
+    path: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer/devcontainer.json'] | path_join }}"
+  register: devcontainer_sync_target
+
+- name: Find initial .devcontainer files
+  ansible.builtin.find:
+    paths: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer'] | path_join }}"
+    file_type: file
+    recurse: true
+    hidden: true
+    get_checksum: true
+    checksum_algorithm: sha256
+  register: devcontainer_sync_initial_files
+  changed_when: false
+  when: devcontainer_sync_target.stat.exists
+
+- name: Store initial .devcontainer hash
+  ansible.builtin.set_fact:
+    devcontainer_sync_initial_hash: >-
+      {%- if not devcontainer_sync_target.stat.exists -%}
+      missing
+      {%- else -%}
+      {%- set entries = [] -%}
+      {%- set target_dir = [workspace_root, devcontainer_sync_target_root, '.devcontainer'] | path_join -%}
+      {%- for file in devcontainer_sync_initial_files.files | sort(attribute='path') -%}
+      {%- set _ = entries.append([file.path | relpath(target_dir), file.checksum]) -%}
+      {%- endfor -%}
+      {{ entries | to_json | hash('sha256') }}
+      {%- endif -%}
+
+- name: Check whether .editorconfig would change
+  ansible.builtin.copy:
+    src: editorconfig
+    dest: "{{ [workspace_root, devcontainer_sync_target_root, '.editorconfig'] | path_join }}"
+    mode: "0644"
+    backup: false
+  check_mode: true
+  register: devcontainer_sync_editorconfig_render_preview
+  when: devcontainer_sync_target.stat.exists
+
+- name: Check whether devcontainer.json would change
+  ansible.builtin.copy:
+    content: "{{ devcontainer_json | to_nice_json(indent=4) }}\n"
+    dest: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer/devcontainer.json'] | path_join }}"
+    mode: "0644"
+    backup: false
+  check_mode: true
+  register: devcontainer_sync_devcontainer_render_preview
+  when: devcontainer_sync_target.stat.exists
+
+- name: Check whether install.sh would change
+  ansible.builtin.template:
+    src: install.sh.j2
+    dest: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer/install.sh'] | path_join }}"
+    mode: "0755"
+    backup: false
+  check_mode: true
+  register: devcontainer_sync_install_render_preview
+  when: devcontainer_sync_target.stat.exists
+
+- name: Check whether aws_configure.sh would change
+  ansible.builtin.template:
+    src: aws_configure.sh.j2
+    dest: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer/aws_configure.sh'] | path_join }}"
+    mode: "0755"
+    backup: false
+  check_mode: true
+  register: devcontainer_sync_aws_render_preview
+  when:
+    - devcontainer_sync_target.stat.exists
+    - "'aws' in devcontainer_sync_plugin_names"
+
+- name: Move changed .devcontainer directory to timestamped backup
+  ansible.builtin.command:
+    argv:
+      - mv
+      - "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer'] | path_join }}"
+      - "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer-bak-' ~ lookup('pipe', 'date +%s%N')] | path_join }}"
+    removes: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer'] | path_join }}"
+  when:
+    - devcontainer_sync_backup_existing_dir | bool
+    - devcontainer_sync_target.stat.exists
+    - >-
+      (devcontainer_sync_devcontainer_render_preview.changed | default(false))
+      or (devcontainer_sync_install_render_preview.changed | default(false))
+      or (devcontainer_sync_aws_render_preview.changed | default(false))
+
+- name: Ensure .devcontainer directory exists
+  ansible.builtin.file:
+    path: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer'] | path_join }}"
+    state: directory
+    mode: "0755"
+  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+
+- name: Render .editorconfig
+  ansible.builtin.copy:
+    src: editorconfig
+    dest: "{{ [workspace_root, devcontainer_sync_target_root, '.editorconfig'] | path_join }}"
+    mode: "0644"
+    backup: "{{ devcontainer_sync_backup }}"
+  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+
+- name: Render devcontainer.json
+  ansible.builtin.copy:
+    content: "{{ devcontainer_json | to_nice_json(indent=4) }}\n"
+    dest: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer/devcontainer.json'] | path_join }}"
+    mode: "0644"
+    backup: "{{ devcontainer_sync_backup }}"
+  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+
+- name: Render install.sh
+  ansible.builtin.template:
+    src: install.sh.j2
+    dest: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer/install.sh'] | path_join }}"
+    mode: "0755"
+    backup: "{{ devcontainer_sync_backup }}"
+  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+
+- name: Render aws_configure.sh
+  ansible.builtin.template:
+    src: aws_configure.sh.j2
+    dest: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer/aws_configure.sh'] | path_join }}"
+    mode: "0755"
+    backup: "{{ devcontainer_sync_backup }}"
+  when:
+    - devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+    - "'aws' in devcontainer_sync_plugin_names"
+
+- name: Copy project extra .devcontainer files
+  ansible.builtin.include_tasks: extra_files.yml
+  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+
+- name: Find rendered .devcontainer files
+  ansible.builtin.find:
+    paths: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer'] | path_join }}"
+    file_type: file
+    recurse: true
+    hidden: true
+    get_checksum: true
+    checksum_algorithm: sha256
+  register: devcontainer_sync_rendered_files
+  changed_when: false
+  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+
+- name: Store rendered .devcontainer hash
+  ansible.builtin.set_fact:
+    devcontainer_sync_rendered_hash: >-
+      {%- set entries = [] -%}
+      {%- set target_dir = [workspace_root, devcontainer_sync_target_root, '.devcontainer'] | path_join -%}
+      {%- for file in devcontainer_sync_rendered_files.files | sort(attribute='path') -%}
+      {%- set _ = entries.append([file.path | relpath(target_dir), file.checksum]) -%}
+      {%- endfor -%}
+      {{ entries | to_json | hash('sha256') }}
+  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+
+- name: Rebuild changed devcontainer
+  ansible.builtin.command:
+    argv:
+      - devcontainer
+      - up
+      - --workspace-folder
+      - "{{ [workspace_root, devcontainer_sync_target_root] | path_join }}"
+      - --remove-existing-container
+  when:
+    - devcontainer_auto_rebuild | bool
+    - not ansible_check_mode
+    - devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+    - devcontainer_sync_initial_hash != devcontainer_sync_rendered_hash
+  changed_when: true
+
+- name: Report skipped missing devcontainer file
+  ansible.builtin.debug:
+    msg: >-
+      Skipped missing target {{ devcontainer_sync_target_root }};
+      set devcontainer_sync_create_missing=true to create it.
+  when: not devcontainer_sync_target.stat.exists and not devcontainer_sync_create_missing | bool

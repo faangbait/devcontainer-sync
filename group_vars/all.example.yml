@@ -1,83 +1,51 @@
 ---
-# Override with: WORKSPACE_ROOT=/path/to/workspaces ansible-playbook playbook.yml
-workspace_root: "{{ lookup('env', 'WORKSPACE_ROOT') | default('~/dev/', true) }}"
-
-# Keep this false until you are ready to create missing project directories.
-devcontainer_sync_create_missing: false
-
-devcontainer_defaults:
-  image: mcr.microsoft.com/devcontainers/base:resolute
-  post_start_command: sudo chown -R vscode:vscode /home/vscode/.claude*
-  # chowns and symlinks mounted directories
-  # runs devcontainer install
-  post_create_command: >-
-    sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude &&
-
-    sudo chown $USER:$USER /opt/claude-code-config &&
-    mkdir -p /opt/claude-code-config/.claude &&
-    touch /opt/claude-code-config/.claude.json &&
-    
-    ln -s /opt/claude-code-config/.claude.json $HOME/.claude.json &&
-    ln -s /opt/claude-code-config/.claude $HOME/.claude &&
-    
-    sudo chown $USER:$USER /opt/.codex &&
-    ln -s /opt/.codex $HOME/.codex &&
-    
-    bash .devcontainer/install.sh
-  post_attach_command: ""
-  install: ""
-  # note: the following keys get merged. see README.
-  container_env: {}
-  vscode_extensions:
-    - Anthropic.claude-code
-    - openai.chatgpt
-  mounts:
-    - source=claude-code-config,target=/opt/claude-code-config,type=volume
-    - source=claude-scope-project-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume
-    - source=codex-config,target=/opt/.codex,type=volume
+devcontainer_aws_sso:
+  start_url: https://example.awsapps.com/start/#
+  account_id: "123456789012"
+  role_name: AdministratorAccess
+  session_name: example-sso
+  region: us-east-1
 
 devcontainers:
-  - name: java-example
-    path: java-example/.devcontainer/devcontainer.json
-    image: mcr.microsoft.com/devcontainers/java:25
-    features:
-      ghcr.io/devcontainers/features/java:1:
-        version: none
-        installMaven: false
-        installGradle: false
-    install: |
-      curl -sL -o cfr.jar 'https://www.benf.org/other/cfr/cfr-0.152.jar'
   - name: rust-example
-    path: rust-example/.devcontainer/devcontainer.json
-    image: mcr.microsoft.com/devcontainers/rust:2-1
-    install: |
-      sudo apt update
-      sudo -n apt-get install -y --no-install-recommends default-jre-headless
+    primary_language: rust
+    plugins:
+      - cache_cargo
+      - shell_history
+    install_steps:
+      - sudo apt update
+      - sudo apt install -y --no-install-recommends default-jre-headless
+
   - name: python-example
-    path: python-example/.devcontainer/devcontainer.json
-    image: mcr.microsoft.com/devcontainers/python:3.14
-    post_attach_command: pip install -r ${containerWorkspaceFolder}/requirements.txt
-    features:
-      ghcr.io/devcontainers/features/python:1:
-        installTools: true
-        version: 3.14
-      ghcr.io/larsnieuwenhuizen/features/jqyq:0: {}
-      ghcr.io/devcontainers/features/aws-cli:1:
-        version: latest
+    image: mcr.microsoft.com/devcontainers/python:3.10
+    primary_language: python
+    python_version: "3.10"
+    plugins:
+      - aws
+      - cache_python
+      - cache_ansible
+      - shell_history
+    install_steps:
+      - sudo apt update
+      - sudo apt install -y --no-install-recommends ansible
+
+  - name: cloud-example
+    image: mcr.microsoft.com/devcontainers/base:resolute
+    primary_language: terraform
+    plugins:
+      - aws
+      - cache_terraform
+      - shell_history
     vscode_extensions:
-      - aaron-bond.better-comments
-      - KevinRose.vsc-python-indent
-      - mikestead.dotenv
-    vscode_settings:
-      python.testing.unittestArgs:
-        - -v
-        - -s
-        - .
-        - -p
-        - "*_test.py"
-      python.testing.pytestEnabled: false
-      python.testing.unittestEnabled: true
-      python.defaultInterpreterPath: /usr/local/python/current/bin/python
-    install: |
-      sudo apt update
-      sudo apt install -y --no-install-recommends ansible
+      - ms-kubernetes-tools.vscode-kubernetes-tools
+    features:
+      ghcr.io/devcontainers/features/kubectl-helm-minikube:1:
+        version: "1.34"
+        helm: latest
+        minikube: none
+
+  - name: node-example
+    primary_language: typescript
+    plugins:
+      - cache_node
+      - shell_history

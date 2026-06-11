@@ -9,12 +9,8 @@ sudo apt update && sudo apt install -y ripgrep
 
 sudo ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime && sudo dpkg-reconfigure -f noninteractive tzdata
 
-cargo install --locked cargo-nextest
+npm install
 
 curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
 
 curl -fsSL https://claude.ai/install.sh | bash
-
-sudo apt update
-
-sudo apt install -y --no-install-recommends default-jre-headless
