@@ -1,20 +1,46 @@
 {
-    "containerEnv": {},
+    "containerEnv": {
+        "HISTFILE": "/commandhistory/.bash_history"
+    },
     "customizations": {
         "vscode": {
             "extensions": [
-                "Anthropic.claude-code",
-                "openai.chatgpt"
-            ]
+                "EditorConfig.EditorConfig",
+                "redhat.vscode-yaml",
+                "timonwong.shellcheck",
+                "usernamehw.errorlens",
+                "github.vscode-github-actions",
+                "openai.chatgpt",
+                "Anthropic.claude-code"
+            ],
+            "settings": {
+                "rust-analyzer.runnables.test.overrideCommand": [
+                    "cargo",
+                    "nextest",
+                    "run",
+                    "--package",
+                    "${package}",
+                    "--release",
+                    "--",
+                    "${test_name}",
+                    "${exact}",
+                    "--nocapture",
+                    "--include-ignored"
+                ]
+            }
         }
     },
     "image": "mcr.microsoft.com/devcontainers/rust:2-1",
     "mounts": [
+        "source=codex-config,target=/opt/.codex,type=volume",
+        "source=agents-config,target=/opt/.agents,type=volume",
         "source=claude-code-config,target=/opt/claude-code-config,type=volume",
         "source=claude-scope-project-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume",
-        "source=codex-config,target=/opt/.codex,type=volume"
+        "source=devcontainer-cache-cargo-registry,target=/usr/local/cargo/registry,type=volume",
+        "source=devcontainer-cache-cargo-git,target=/usr/local/cargo/git,type=volume",
+        "source=devcontainer-cache-cargo-target-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/target,type=volume",
+        "source=devcontainer-history-${localWorkspaceFolderBasename},target=/commandhistory,type=volume"
     ],
     "name": "rust-example",
-    "postCreateCommand": "sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude &&\nsudo chown $USER:$USER /opt/claude-code-config && mkdir -p /opt/claude-code-config/.claude && touch /opt/claude-code-config/.claude.json &&\nln -s /opt/claude-code-config/.claude.json $HOME/.claude.json && ln -s /opt/claude-code-config/.claude $HOME/.claude &&\nsudo chown $USER:$USER /opt/.codex && ln -s /opt/.codex $HOME/.codex &&\nbash .devcontainer/install.sh",
-    "postStartCommand": "sudo chown -R vscode:vscode /home/vscode/.claude*"
+    "postCreateCommand": "sudo chown $USER:$USER /opt/.codex && ln -sfn /opt/.codex $HOME/.codex && sudo chown $USER:$USER /opt/.agents && ln -sfn /opt/.agents $HOME/.agents && sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude && sudo chown $USER:$USER /opt/claude-code-config && mkdir -p /opt/claude-code-config/.claude && touch /opt/claude-code-config/.claude.json && ln -sfn /opt/claude-code-config/.claude.json $HOME/.claude.json && ln -sfn /opt/claude-code-config/.claude $HOME/.claude && sudo mkdir -p /usr/local/cargo/registry /usr/local/cargo/git ${containerWorkspaceFolder}/target && sudo chown -R $USER:$USER /usr/local/cargo/registry /usr/local/cargo/git ${containerWorkspaceFolder}/target && sudo mkdir -p /commandhistory && sudo touch /commandhistory/.bash_history && sudo chown -R $USER:$USER /commandhistory && bash \"${containerWorkspaceFolder}/.devcontainer/install.sh\""
 }

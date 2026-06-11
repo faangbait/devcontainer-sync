@@ -1,0 +1,59 @@
+#!/bin/bash
+set -euo pipefail
+
+mkdir -p "$HOME/.aws" "$HOME/.bashrc.d"
+
+cat > "$HOME/.aws/config" <<'AWS_CONFIG'
+{{ '[default]' if devcontainer_aws_sso.profile | default('default') == 'default' else '[profile ' ~ devcontainer_aws_sso.profile ~ ']' }}
+region = {{ devcontainer_aws_sso.region | default('us-east-1') }}
+output = {{ devcontainer_aws_sso.output | default('json') }}
+sso_session = {{ devcontainer_aws_sso.session_name | default('default-sso') }}
+sso_account_id = {{ devcontainer_aws_sso.account_id }}
+sso_role_name = {{ devcontainer_aws_sso.role_name }}
+
+[sso-session {{ devcontainer_aws_sso.session_name | default('default-sso') }}]
+sso_start_url = {{ devcontainer_aws_sso.start_url }}
+sso_region = {{ devcontainer_aws_sso.sso_region | default(devcontainer_aws_sso.region | default('us-east-1')) }}
+sso_registration_scopes = {{ devcontainer_aws_sso.registration_scopes | default('sso:account:access') }}
+AWS_CONFIG
+
+cat > "$HOME/.bashrc.d/aws-sso-login.sh" <<'AWS_HOOK'
+aws() {
+  local argument index
+  local -a profile_args=()
+
+  for ((index = 1; index <= $#; index++)); do
+    argument="${!index}"
+    case "$argument" in
+      --profile)
+        if ((index == $#)); then
+          command aws "$@"
+          return
+        fi
+        index=$((index + 1))
+        profile_args=(--profile "${!index}")
+        ;;
+      --profile=*)
+        profile_args=("$argument")
+        ;;
+    esac
+  done
+
+  case " $* " in
+    *" sso login "*|*" sso logout "*|*" configure "*|*" --help "*|*" --version "*)
+      command aws "$@"
+      return
+      ;;
+  esac
+
+  if ! command aws "${profile_args[@]}" sts get-caller-identity >/dev/null 2>&1; then
+    command aws "${profile_args[@]}" sso login
+  fi
+
+  command aws "$@"
+}
+AWS_HOOK
+
+bashrc_hook="source \"$HOME/.bashrc.d/aws-sso-login.sh\""
+touch "$HOME/.bashrc"
+grep -qxF "$bashrc_hook" "$HOME/.bashrc" || printf '\n%s\n' "$bashrc_hook" >> "$HOME/.bashrc"

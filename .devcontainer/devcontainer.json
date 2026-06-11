@@ -1,4 +1,16 @@
 {
     "name": "devcontainer-sync",
-    "image": "ghcr.io/ansible/community-ansible-dev-tools:latest"
+    "image": "mcr.microsoft.com/devcontainers/python:3.14",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "openai.chatgpt",
+                "redhat.vscode-yaml"
+            ]
+        }
+    },
+    "mounts": [
+        "source=codex-config,target=/opt/.codex,type=volume"
+    ],
+    "postCreateCommand": "sudo chown $USER:$USER /opt/.codex && ln -s /opt/.codex $HOME/.codex && bash .devcontainer/install.sh"
 }

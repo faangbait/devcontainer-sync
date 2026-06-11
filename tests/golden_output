@@ -1,54 +1,282 @@
+#!/bin/bash
+set -euo pipefail
+
+mkdir -p "$HOME/.aws" "$HOME/.bashrc.d"
+
+cat > "$HOME/.aws/config" <<'AWS_CONFIG'
+[default]
+region = us-east-1
+output = json
+sso_session = example-sso
+sso_account_id = 123456789012
+sso_role_name = AdministratorAccess
+
+[sso-session example-sso]
+sso_start_url = https://example.awsapps.com/start/#
+sso_region = us-east-1
+sso_registration_scopes = sso:account:access
+AWS_CONFIG
+
+cat > "$HOME/.bashrc.d/aws-sso-login.sh" <<'AWS_HOOK'
+aws() {
+  local argument index
+  local -a profile_args=()
+
+  for ((index = 1; index <= $#; index++)); do
+    argument="${!index}"
+    case "$argument" in
+      --profile)
+        if ((index == $#)); then
+          command aws "$@"
+          return
+        fi
+        index=$((index + 1))
+        profile_args=(--profile "${!index}")
+        ;;
+      --profile=*)
+        profile_args=("$argument")
+        ;;
+    esac
+  done
+
+  case " $* " in
+    *" sso login "*|*" sso logout "*|*" configure "*|*" --help "*|*" --version "*)
+      command aws "$@"
+      return
+      ;;
+  esac
+
+  if ! command aws "${profile_args[@]}" sts get-caller-identity >/dev/null 2>&1; then
+    command aws "${profile_args[@]}" sso login
+  fi
+
+  command aws "$@"
+}
+AWS_HOOK
+
+bashrc_hook="source \"$HOME/.bashrc.d/aws-sso-login.sh\""
+touch "$HOME/.bashrc"
+grep -qxF "$bashrc_hook" "$HOME/.bashrc" || printf '\n%s\n' "$bashrc_hook" >> "$HOME/.bashrc"
 {
-    "containerEnv": {},
+    "containerEnv": {
+        "HISTFILE": "/commandhistory/.bash_history",
+        "TF_PLUGIN_CACHE_DIR": "/opt/devcontainer-cache/terraform"
+    },
     "customizations": {
         "vscode": {
             "extensions": [
+                "EditorConfig.EditorConfig",
+                "timonwong.shellcheck",
+                "usernamehw.errorlens",
+                "github.vscode-github-actions",
+                "4ops.terraform",
+                "redhat.vscode-yaml",
+                "openai.chatgpt",
                 "Anthropic.claude-code",
-                "openai.chatgpt"
+                "ms-kubernetes-tools.vscode-kubernetes-tools"
             ]
         }
     },
     "features": {
-        "ghcr.io/devcontainers/features/java:1": {
-            "installGradle": false,
-            "installMaven": false,
-            "version": "none"
+        "ghcr.io/devcontainers-extra/features/terraform-ls-asdf:2": {},
+        "ghcr.io/devcontainers/features/aws-cli:1": {
+            "version": "latest"
+        },
+        "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+            "helm": "latest",
+            "minikube": "none",
+            "version": "1.34"
+        },
+        "ghcr.io/devcontainers/features/terraform:1": {
+            "terragrunt": "latest",
+            "tflint": "latest",
+            "version": "latest"
         }
     },
-    "image": "mcr.microsoft.com/devcontainers/java:25",
+    "image": "mcr.microsoft.com/devcontainers/base:resolute",
     "mounts": [
+        "source=codex-config,target=/opt/.codex,type=volume",
+        "source=agents-config,target=/opt/.agents,type=volume",
         "source=claude-code-config,target=/opt/claude-code-config,type=volume",
         "source=claude-scope-project-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume",
-        "source=codex-config,target=/opt/.codex,type=volume"
+        "source=devcontainer-cache-terraform,target=/opt/devcontainer-cache/terraform,type=volume",
+        "source=devcontainer-history-${localWorkspaceFolderBasename},target=/commandhistory,type=volume"
     ],
-    "name": "java-example",
-    "postCreateCommand": "sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude &&\nsudo chown $USER:$USER /opt/claude-code-config && mkdir -p /opt/claude-code-config/.claude && touch /opt/claude-code-config/.claude.json &&\nln -s /opt/claude-code-config/.claude.json $HOME/.claude.json && ln -s /opt/claude-code-config/.claude $HOME/.claude &&\nsudo chown $USER:$USER /opt/.codex && ln -s /opt/.codex $HOME/.codex &&\nbash .devcontainer/install.sh",
-    "postStartCommand": "sudo chown -R vscode:vscode /home/vscode/.claude*"
+    "name": "cloud-example",
+    "postCreateCommand": "sudo chown $USER:$USER /opt/.codex && ln -sfn /opt/.codex $HOME/.codex && sudo chown $USER:$USER /opt/.agents && ln -sfn /opt/.agents $HOME/.agents && sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude && sudo chown $USER:$USER /opt/claude-code-config && mkdir -p /opt/claude-code-config/.claude && touch /opt/claude-code-config/.claude.json && ln -sfn /opt/claude-code-config/.claude.json $HOME/.claude.json && ln -sfn /opt/claude-code-config/.claude $HOME/.claude && sudo mkdir -p /opt/devcontainer-cache/terraform && sudo chown -R $USER:$USER /opt/devcontainer-cache/terraform && sudo mkdir -p /commandhistory && sudo touch /commandhistory/.bash_history && sudo chown -R $USER:$USER /commandhistory && bash \"${containerWorkspaceFolder}/.devcontainer/install.sh\""
 }
 #!/bin/bash
+set -euo pipefail
 
-# This template provides a paved road for wrapping all devcontainer installers.
+DEVCONTAINER_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+containerWorkspaceFolder="$(dirname -- "$DEVCONTAINER_DIR")"
+export containerWorkspaceFolder
 
-# For example, to install claude-code CLI in every devcontainer, use:
+sudo apt update && sudo apt install -y ripgrep
+
+sudo ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime && sudo dpkg-reconfigure -f noninteractive tzdata
+
+echo alias tf=terraform > ~/.bash_aliases
+
+curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+
 curl -fsSL https://claude.ai/install.sh | bash
 
-# And Codex: 
-export CODEX_NON_INTERACTIVE=true
-curl -fsSL https://chatgpt.com/codex/install.sh | sh
+mkdir -p ~/.ssh
 
-curl -sL -o cfr.jar 'https://www.benf.org/other/cfr/cfr-0.152.jar'
+printf 'Host *\n  User ec2-user\n  IdentityFile %s/.ssh/id_rsa\n  StrictHostKeyChecking no\n' "${containerWorkspaceFolder}" > ~/.ssh/config
+
+bash "${containerWorkspaceFolder}/.devcontainer/aws_configure.sh"
+# Managed by devcontainer-sync.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+trim_trailing_whitespace = false
 {
-    "containerEnv": {},
+    "containerEnv": {
+        "HISTFILE": "/commandhistory/.bash_history",
+        "NPM_CONFIG_CACHE": "/opt/devcontainer-cache/npm"
+    },
     "customizations": {
         "vscode": {
             "extensions": [
-                "Anthropic.claude-code",
+                "EditorConfig.EditorConfig",
+                "redhat.vscode-yaml",
+                "timonwong.shellcheck",
+                "usernamehw.errorlens",
+                "github.vscode-github-actions",
                 "openai.chatgpt",
-                "aaron-bond.better-comments",
+                "Anthropic.claude-code"
+            ]
+        }
+    },
+    "image": "mcr.microsoft.com/devcontainers/typescript-node:24",
+    "mounts": [
+        "source=codex-config,target=/opt/.codex,type=volume",
+        "source=agents-config,target=/opt/.agents,type=volume",
+        "source=claude-code-config,target=/opt/claude-code-config,type=volume",
+        "source=claude-scope-project-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume",
+        "source=devcontainer-cache-npm,target=/opt/devcontainer-cache/npm,type=volume",
+        "source=devcontainer-cache-pnpm,target=/opt/devcontainer-cache/pnpm,type=volume",
+        "source=devcontainer-history-${localWorkspaceFolderBasename},target=/commandhistory,type=volume"
+    ],
+    "name": "node-example",
+    "postCreateCommand": "sudo chown $USER:$USER /opt/.codex && ln -sfn /opt/.codex $HOME/.codex && sudo chown $USER:$USER /opt/.agents && ln -sfn /opt/.agents $HOME/.agents && sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude && sudo chown $USER:$USER /opt/claude-code-config && mkdir -p /opt/claude-code-config/.claude && touch /opt/claude-code-config/.claude.json && ln -sfn /opt/claude-code-config/.claude.json $HOME/.claude.json && ln -sfn /opt/claude-code-config/.claude $HOME/.claude && sudo mkdir -p /opt/devcontainer-cache/npm /opt/devcontainer-cache/pnpm && sudo chown -R $USER:$USER /opt/devcontainer-cache/npm /opt/devcontainer-cache/pnpm && touch $HOME/.npmrc && (grep -qxF 'store-dir=/opt/devcontainer-cache/pnpm' $HOME/.npmrc || echo 'store-dir=/opt/devcontainer-cache/pnpm' >> $HOME/.npmrc) && sudo mkdir -p /commandhistory && sudo touch /commandhistory/.bash_history && sudo chown -R $USER:$USER /commandhistory && bash \"${containerWorkspaceFolder}/.devcontainer/install.sh\""
+}
+#!/bin/bash
+set -euo pipefail
+
+DEVCONTAINER_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+containerWorkspaceFolder="$(dirname -- "$DEVCONTAINER_DIR")"
+export containerWorkspaceFolder
+
+sudo apt update && sudo apt install -y ripgrep
+
+sudo ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime && sudo dpkg-reconfigure -f noninteractive tzdata
+
+npm install
+
+curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+
+curl -fsSL https://claude.ai/install.sh | bash
+# Managed by devcontainer-sync.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+trim_trailing_whitespace = false
+#!/bin/bash
+set -euo pipefail
+
+mkdir -p "$HOME/.aws" "$HOME/.bashrc.d"
+
+cat > "$HOME/.aws/config" <<'AWS_CONFIG'
+[default]
+region = us-east-1
+output = json
+sso_session = example-sso
+sso_account_id = 123456789012
+sso_role_name = AdministratorAccess
+
+[sso-session example-sso]
+sso_start_url = https://example.awsapps.com/start/#
+sso_region = us-east-1
+sso_registration_scopes = sso:account:access
+AWS_CONFIG
+
+cat > "$HOME/.bashrc.d/aws-sso-login.sh" <<'AWS_HOOK'
+aws() {
+  local argument index
+  local -a profile_args=()
+
+  for ((index = 1; index <= $#; index++)); do
+    argument="${!index}"
+    case "$argument" in
+      --profile)
+        if ((index == $#)); then
+          command aws "$@"
+          return
+        fi
+        index=$((index + 1))
+        profile_args=(--profile "${!index}")
+        ;;
+      --profile=*)
+        profile_args=("$argument")
+        ;;
+    esac
+  done
+
+  case " $* " in
+    *" sso login "*|*" sso logout "*|*" configure "*|*" --help "*|*" --version "*)
+      command aws "$@"
+      return
+      ;;
+  esac
+
+  if ! command aws "${profile_args[@]}" sts get-caller-identity >/dev/null 2>&1; then
+    command aws "${profile_args[@]}" sso login
+  fi
+
+  command aws "$@"
+}
+AWS_HOOK
+
+bashrc_hook="source \"$HOME/.bashrc.d/aws-sso-login.sh\""
+touch "$HOME/.bashrc"
+grep -qxF "$bashrc_hook" "$HOME/.bashrc" || printf '\n%s\n' "$bashrc_hook" >> "$HOME/.bashrc"
+{
+    "containerEnv": {
+        "ANSIBLE_COLLECTIONS_PATH": "/opt/devcontainer-cache/ansible/collections:/usr/share/ansible/collections",
+        "HISTFILE": "/commandhistory/.bash_history",
+        "PIP_CACHE_DIR": "/opt/devcontainer-cache/pip",
+        "UV_CACHE_DIR": "/opt/devcontainer-cache/uv"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "EditorConfig.EditorConfig",
+                "redhat.vscode-yaml",
+                "timonwong.shellcheck",
+                "usernamehw.errorlens",
+                "github.vscode-github-actions",
                 "KevinRose.vsc-python-indent",
-                "mikestead.dotenv"
+                "mikestead.dotenv",
+                "openai.chatgpt",
+                "Anthropic.claude-code"
             ],
             "settings": {
+                "python.analysis.autoFormatStrings": true,
                 "python.defaultInterpreterPath": "/usr/local/python/current/bin/python",
                 "python.testing.pytestEnabled": false,
                 "python.testing.unittestArgs": [
@@ -68,64 +296,140 @@ curl -sL -o cfr.jar 'https://www.benf.org/other/cfr/cfr-0.152.jar'
         },
         "ghcr.io/devcontainers/features/python:1": {
             "installTools": true,
-            "version": 3.14
+            "version": "3.10"
         },
         "ghcr.io/larsnieuwenhuizen/features/jqyq:0": {}
     },
-    "image": "mcr.microsoft.com/devcontainers/python:3.14",
+    "image": "mcr.microsoft.com/devcontainers/python:3.10",
     "mounts": [
+        "source=codex-config,target=/opt/.codex,type=volume",
+        "source=agents-config,target=/opt/.agents,type=volume",
         "source=claude-code-config,target=/opt/claude-code-config,type=volume",
         "source=claude-scope-project-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume",
-        "source=codex-config,target=/opt/.codex,type=volume"
+        "source=devcontainer-cache-pip,target=/opt/devcontainer-cache/pip,type=volume",
+        "source=devcontainer-cache-uv,target=/opt/devcontainer-cache/uv,type=volume",
+        "source=devcontainer-cache-ansible,target=/opt/devcontainer-cache/ansible,type=volume",
+        "source=devcontainer-history-${localWorkspaceFolderBasename},target=/commandhistory,type=volume"
     ],
     "name": "python-example",
-    "postAttachCommand": "pip install -r ${containerWorkspaceFolder}/requirements.txt",
-    "postCreateCommand": "sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude &&\nsudo chown $USER:$USER /opt/claude-code-config && mkdir -p /opt/claude-code-config/.claude && touch /opt/claude-code-config/.claude.json &&\nln -s /opt/claude-code-config/.claude.json $HOME/.claude.json && ln -s /opt/claude-code-config/.claude $HOME/.claude &&\nsudo chown $USER:$USER /opt/.codex && ln -s /opt/.codex $HOME/.codex &&\nbash .devcontainer/install.sh",
-    "postStartCommand": "sudo chown -R vscode:vscode /home/vscode/.claude*"
+    "postCreateCommand": "sudo chown $USER:$USER /opt/.codex && ln -sfn /opt/.codex $HOME/.codex && sudo chown $USER:$USER /opt/.agents && ln -sfn /opt/.agents $HOME/.agents && sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude && sudo chown $USER:$USER /opt/claude-code-config && mkdir -p /opt/claude-code-config/.claude && touch /opt/claude-code-config/.claude.json && ln -sfn /opt/claude-code-config/.claude.json $HOME/.claude.json && ln -sfn /opt/claude-code-config/.claude $HOME/.claude && sudo mkdir -p /opt/devcontainer-cache/pip /opt/devcontainer-cache/uv && sudo chown -R $USER:$USER /opt/devcontainer-cache/pip /opt/devcontainer-cache/uv && sudo mkdir -p /opt/devcontainer-cache/ansible/collections && sudo chown -R $USER:$USER /opt/devcontainer-cache/ansible && sudo mkdir -p /commandhistory && sudo touch /commandhistory/.bash_history && sudo chown -R $USER:$USER /commandhistory && bash \"${containerWorkspaceFolder}/.devcontainer/install.sh\""
 }
 #!/bin/bash
+set -euo pipefail
 
-# This template provides a paved road for wrapping all devcontainer installers.
+DEVCONTAINER_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+containerWorkspaceFolder="$(dirname -- "$DEVCONTAINER_DIR")"
+export containerWorkspaceFolder
 
-# For example, to install claude-code CLI in every devcontainer, use:
+sudo apt update && sudo apt install -y ripgrep
+
+sudo ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime && sudo dpkg-reconfigure -f noninteractive tzdata
+
+if [ -f "${containerWorkspaceFolder}/requirements.txt" ] || [ -f "${containerWorkspaceFolder}/dev_requirements.txt" ]; then
+  set --
+  [ -f "${containerWorkspaceFolder}/requirements.txt" ] && set -- "$@" -r "${containerWorkspaceFolder}/requirements.txt"
+  [ -f "${containerWorkspaceFolder}/dev_requirements.txt" ] && set -- "$@" -r "${containerWorkspaceFolder}/dev_requirements.txt"
+  pip install "$@"
+fi
+
+curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+
 curl -fsSL https://claude.ai/install.sh | bash
 
-# And Codex: 
-export CODEX_NON_INTERACTIVE=true
-curl -fsSL https://chatgpt.com/codex/install.sh | sh
+mkdir -p ~/.ssh
+
+printf 'Host *\n  User ec2-user\n  IdentityFile %s/.ssh/id_rsa\n  StrictHostKeyChecking no\n' "${containerWorkspaceFolder}" > ~/.ssh/config
+
+bash "${containerWorkspaceFolder}/.devcontainer/aws_configure.sh"
 
 sudo apt update
+
 sudo apt install -y --no-install-recommends ansible
+# Managed by devcontainer-sync.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+trim_trailing_whitespace = false
 {
-    "containerEnv": {},
+    "containerEnv": {
+        "HISTFILE": "/commandhistory/.bash_history"
+    },
     "customizations": {
         "vscode": {
             "extensions": [
-                "Anthropic.claude-code",
-                "openai.chatgpt"
-            ]
+                "EditorConfig.EditorConfig",
+                "redhat.vscode-yaml",
+                "timonwong.shellcheck",
+                "usernamehw.errorlens",
+                "github.vscode-github-actions",
+                "openai.chatgpt",
+                "Anthropic.claude-code"
+            ],
+            "settings": {
+                "rust-analyzer.runnables.test.overrideCommand": [
+                    "cargo",
+                    "nextest",
+                    "run",
+                    "--package",
+                    "${package}",
+                    "--release",
+                    "--",
+                    "${test_name}",
+                    "${exact}",
+                    "--nocapture",
+                    "--include-ignored"
+                ]
+            }
         }
     },
     "image": "mcr.microsoft.com/devcontainers/rust:2-1",
     "mounts": [
+        "source=codex-config,target=/opt/.codex,type=volume",
+        "source=agents-config,target=/opt/.agents,type=volume",
         "source=claude-code-config,target=/opt/claude-code-config,type=volume",
         "source=claude-scope-project-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume",
-        "source=codex-config,target=/opt/.codex,type=volume"
+        "source=devcontainer-cache-cargo-registry,target=/usr/local/cargo/registry,type=volume",
+        "source=devcontainer-cache-cargo-git,target=/usr/local/cargo/git,type=volume",
+        "source=devcontainer-cache-cargo-target-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/target,type=volume",
+        "source=devcontainer-history-${localWorkspaceFolderBasename},target=/commandhistory,type=volume"
     ],
     "name": "rust-example",
-    "postCreateCommand": "sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude &&\nsudo chown $USER:$USER /opt/claude-code-config && mkdir -p /opt/claude-code-config/.claude && touch /opt/claude-code-config/.claude.json &&\nln -s /opt/claude-code-config/.claude.json $HOME/.claude.json && ln -s /opt/claude-code-config/.claude $HOME/.claude &&\nsudo chown $USER:$USER /opt/.codex && ln -s /opt/.codex $HOME/.codex &&\nbash .devcontainer/install.sh",
-    "postStartCommand": "sudo chown -R vscode:vscode /home/vscode/.claude*"
+    "postCreateCommand": "sudo chown $USER:$USER /opt/.codex && ln -sfn /opt/.codex $HOME/.codex && sudo chown $USER:$USER /opt/.agents && ln -sfn /opt/.agents $HOME/.agents && sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude && sudo chown $USER:$USER /opt/claude-code-config && mkdir -p /opt/claude-code-config/.claude && touch /opt/claude-code-config/.claude.json && ln -sfn /opt/claude-code-config/.claude.json $HOME/.claude.json && ln -sfn /opt/claude-code-config/.claude $HOME/.claude && sudo mkdir -p /usr/local/cargo/registry /usr/local/cargo/git ${containerWorkspaceFolder}/target && sudo chown -R $USER:$USER /usr/local/cargo/registry /usr/local/cargo/git ${containerWorkspaceFolder}/target && sudo mkdir -p /commandhistory && sudo touch /commandhistory/.bash_history && sudo chown -R $USER:$USER /commandhistory && bash \"${containerWorkspaceFolder}/.devcontainer/install.sh\""
 }
 #!/bin/bash
+set -euo pipefail
 
-# This template provides a paved road for wrapping all devcontainer installers.
+DEVCONTAINER_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+containerWorkspaceFolder="$(dirname -- "$DEVCONTAINER_DIR")"
+export containerWorkspaceFolder
 
-# For example, to install claude-code CLI in every devcontainer, use:
+sudo apt update && sudo apt install -y ripgrep
+
+sudo ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime && sudo dpkg-reconfigure -f noninteractive tzdata
+
+cargo install --locked cargo-nextest
+
+curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+
 curl -fsSL https://claude.ai/install.sh | bash
 
-# And Codex: 
-export CODEX_NON_INTERACTIVE=true
-curl -fsSL https://chatgpt.com/codex/install.sh | sh
-
 sudo apt update
-sudo -n apt-get install -y --no-install-recommends default-jre-headless
+
+sudo apt install -y --no-install-recommends default-jre-headless
+# Managed by devcontainer-sync.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+trim_trailing_whitespace = false
