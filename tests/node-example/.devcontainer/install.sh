@@ -9,6 +9,8 @@ sudo apt update && sudo apt install -y ripgrep
 
 sudo ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime && sudo dpkg-reconfigure -f noninteractive tzdata
 
+sudo apt update && sudo apt install -y npm --no-install-recommends
+
 npm install
 
 curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
