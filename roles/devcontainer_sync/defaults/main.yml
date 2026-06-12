@@ -74,6 +74,7 @@ devcontainer_plugins:
 
   rust:
     install_steps:
+      - sudo apt install -y python-is-python3
       - cargo install --locked cargo-nextest
     vscode_settings:
       rust-analyzer.runnables.test.overrideCommand:
@@ -153,6 +154,7 @@ devcontainer_plugins:
 
   typescript:
     install_steps:
+      - sudo apt update && sudo apt install -y npm --no-install-recommends
       - npm install
 
   github:
