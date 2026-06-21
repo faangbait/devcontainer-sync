@@ -23,7 +23,7 @@ devcontainer_defaults:
   post_attach_commands: []
   initialize_commands: []
   install_steps:
-    - sudo apt update && sudo apt install -y ripgrep
+    - sudo apt update && sudo apt install -y ripgrep ncat
     - sudo ln -sf /usr/share/zoneinfo/{{ local_timezone }} /etc/localtime && sudo dpkg-reconfigure -f noninteractive tzdata
   container_env: {}
   remote_env: {}
@@ -54,6 +54,8 @@ devcontainer_plugins:
       - touch /opt/claude-code-config/.claude.json
       - ln -sfn /opt/claude-code-config/.claude.json $HOME/.claude.json
       - ln -sfn /opt/claude-code-config/.claude $HOME/.claude
+      # devcontainers are supposed to be sandboxes; cron will be unreliable/unavailable
+      - echo "export CLAUDE_CODE_DISABLE_CRON=1" >> ~/.bashrc
     mounts:
       - source=claude-code-config,target=/opt/claude-code-config,type=volume
       - source=claude-scope-project-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume
