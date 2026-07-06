@@ -82,6 +82,7 @@
       - devcontainer.container_env is mapping
       - devcontainer.remote_env is mapping
       - devcontainer.features is mapping
+      - devcontainer.mcp is mapping
       - devcontainer.vscode_settings is mapping
       - devcontainer.vscode_extensions is sequence
       - devcontainer.vscode_extensions is not string
@@ -156,6 +157,11 @@
             | combine(
               {'settings': devcontainer.vscode_settings}
               if devcontainer.vscode_settings
+              else {}
+            )
+            | combine(
+              {'mcp': devcontainer.mcp}
+              if devcontainer.mcp
               else {}
             ),
           },
