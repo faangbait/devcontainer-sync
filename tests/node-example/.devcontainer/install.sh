@@ -16,3 +16,5 @@ npm install
 curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
 
 curl -fsSL https://claude.ai/install.sh | bash
+
+curl -fsSL https://opencode.ai/install | bash
