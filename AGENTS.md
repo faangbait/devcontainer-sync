@@ -23,6 +23,7 @@ roles/devcontainer_sync/defaults/main.yml
     vscode_extensions: [...]
     vscode_settings: {...}
     features: {...}
+    mcp: {...}
     mounts: [...]
     post_create_commands: [...]
     container_env: {...}
@@ -60,6 +61,7 @@ roles/devcontainer_sync/defaults/main.yml
     vscode_extensions: [...]
     vscode_settings: {...}
     features: {...}
+    mcp: {...}
     mounts: [...]
     post_create_commands: [...]
     post_start_commands: [...]
