@@ -15,9 +15,22 @@
                 "github.vscode-github-actions",
                 "KevinRose.vsc-python-indent",
                 "mikestead.dotenv",
-                "openai.chatgpt",
-                "Anthropic.claude-code"
+                "ankurmathur.opencode-provider-bridge"
             ],
+            "mcp": {
+                "servers": {
+                    "context-mode": {
+                        "command": "context-mode"
+                    },
+                    "smart-tree": {
+                        "args": [
+                            "--mcp"
+                        ],
+                        "command": "st",
+                        "type": "stdio"
+                    }
+                }
+            },
             "settings": {
                 "python.analysis.autoFormatStrings": true,
                 "python.defaultInterpreterPath": "/usr/local/python/current/bin/python",
@@ -45,8 +58,6 @@
     },
     "image": "mcr.microsoft.com/devcontainers/python:3.10",
     "mounts": [
-        "source=codex-config,target=/opt/.codex,type=volume",
-        "source=agents-config,target=/opt/.agents,type=volume",
         "source=claude-code-config,target=/opt/claude-code-config,type=volume",
         "source=claude-scope-project-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/.claude,type=volume",
         "source=opencode-config,target=/opt/opencode-config,type=volume",
@@ -56,5 +67,5 @@
         "source=devcontainer-history-${localWorkspaceFolderBasename},target=/commandhistory,type=volume"
     ],
     "name": "python-example",
-    "postCreateCommand": "sudo chown $USER:$USER /opt/.codex && ln -sfn /opt/.codex $HOME/.codex && sudo chown $USER:$USER /opt/.agents && ln -sfn /opt/.agents $HOME/.agents && sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude && sudo chown $USER:$USER /opt/claude-code-config && mkdir -p /opt/claude-code-config/.claude && touch /opt/claude-code-config/.claude.json && ln -sfn /opt/claude-code-config/.claude.json $HOME/.claude.json && ln -sfn /opt/claude-code-config/.claude $HOME/.claude && echo \"export CLAUDE_CODE_DISABLE_CRON=1\" >> ~/.bashrc && sudo chown $USER:$USER /opt/opencode-config && mkdir -p $HOME/.config && ln -sfn /opt/opencode-config $HOME/.config/opencode && sudo mkdir -p /opt/devcontainer-cache/pip /opt/devcontainer-cache/uv && sudo chown -R $USER:$USER /opt/devcontainer-cache/pip /opt/devcontainer-cache/uv && sudo mkdir -p /opt/devcontainer-cache/ansible/collections && sudo chown -R $USER:$USER /opt/devcontainer-cache/ansible && sudo mkdir -p /commandhistory && sudo touch /commandhistory/.bash_history && sudo chown -R $USER:$USER /commandhistory && bash \"${containerWorkspaceFolder}/.devcontainer/install.sh\""
+    "postCreateCommand": "sudo chown $USER:$USER ${containerWorkspaceFolder}/.claude && sudo chown $USER:$USER /opt/claude-code-config && mkdir -p /opt/claude-code-config/.claude && touch /opt/claude-code-config/.claude.json && ln -sfn /opt/claude-code-config/.claude.json $HOME/.claude.json && ln -sfn /opt/claude-code-config/.claude $HOME/.claude && echo \"export CLAUDE_CODE_DISABLE_CRON=1\" >> ~/.bashrc && sudo chown $USER:$USER /opt/opencode-config && mkdir -p $HOME/.config && ln -sfn /opt/opencode-config $HOME/.config/opencode && sudo mkdir -p /opt/devcontainer-cache/pip /opt/devcontainer-cache/uv && sudo chown -R $USER:$USER /opt/devcontainer-cache/pip /opt/devcontainer-cache/uv && sudo mkdir -p /opt/devcontainer-cache/ansible/collections && sudo chown -R $USER:$USER /opt/devcontainer-cache/ansible && sudo mkdir -p /commandhistory && sudo touch /commandhistory/.bash_history && sudo chown -R $USER:$USER /commandhistory && bash \"${containerWorkspaceFolder}/.devcontainer/install.sh\""
 }

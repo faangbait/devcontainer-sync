@@ -11,11 +11,21 @@ sudo ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime && sudo dpkg-reco
 
 echo alias tf=terraform > ~/.bash_aliases
 
-curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
-
 curl -fsSL https://claude.ai/install.sh | bash
 
 curl -fsSL https://opencode.ai/install | bash
+
+curl -sSL https://raw.githubusercontent.com/8b-is/smart-tree/main/scripts/install.sh | bash
+
+curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/$(curl -s https://api.github.com/repos/nvm-sh/nvm/releases/latest | jq -r '.tag_name')/install.sh" | bash
+
+bash -c "source ~/.nvm/nvm.sh && nvm install 24"
+
+npm install context-mode
+
+mkdir -p "${containerWorkspaceFolder}"/.github/hooks
+
+wget https://raw.githubusercontent.com/mksglu/context-mode/refs/heads/main/configs/vscode-copilot/hooks.json -O .github/hooks/context-mode.json
 
 mkdir -p ~/.ssh
 
