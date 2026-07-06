@@ -11,7 +11,7 @@ sudo ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime && sudo dpkg-reco
 
 sudo apt update && sudo apt install -y npm --no-install-recommends
 
-npm install
+npm install || true
 
 curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
 
