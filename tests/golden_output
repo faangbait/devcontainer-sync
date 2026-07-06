@@ -138,9 +138,7 @@ curl -sSL https://raw.githubusercontent.com/8b-is/smart-tree/main/scripts/instal
 
 curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/$(curl -s https://api.github.com/repos/nvm-sh/nvm/releases/latest | jq -r '.tag_name')/install.sh" | bash
 
-bash -c "source ~/.nvm/nvm.sh && nvm install 24"
-
-npm install context-mode
+bash -c "source ~/.nvm/nvm.sh && nvm install 24 --latest-npm --no-progress" && npm install --save-dev context-mode
 
 mkdir -p "${containerWorkspaceFolder}"/.github/hooks
 
@@ -216,11 +214,9 @@ sudo apt update && sudo apt install -y ripgrep ncat
 
 sudo ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime && sudo dpkg-reconfigure -f noninteractive tzdata
 
-sudo apt update && sudo apt install -y npm --no-install-recommends
+bash -c "source ~/.nvm/nvm.sh && nvm install 24 --latest-npm --no-progress"
 
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash
-
-if [ -f "${containerWorkspaceFolder}/package.json" ]; then npm install; fi
+if [ -f "${containerWorkspaceFolder}/package.json" ]; then bash -c "source ~/.nvm/nvm.sh && npm install"; fi
 
 curl -fsSL https://claude.ai/install.sh | bash
 
@@ -230,9 +226,7 @@ curl -sSL https://raw.githubusercontent.com/8b-is/smart-tree/main/scripts/instal
 
 curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/$(curl -s https://api.github.com/repos/nvm-sh/nvm/releases/latest | jq -r '.tag_name')/install.sh" | bash
 
-bash -c "source ~/.nvm/nvm.sh && nvm install 24"
-
-npm install context-mode
+bash -c "source ~/.nvm/nvm.sh && nvm install 24 --latest-npm --no-progress" && npm install --save-dev context-mode
 
 mkdir -p "${containerWorkspaceFolder}"/.github/hooks
 
@@ -404,9 +398,7 @@ curl -sSL https://raw.githubusercontent.com/8b-is/smart-tree/main/scripts/instal
 
 curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/$(curl -s https://api.github.com/repos/nvm-sh/nvm/releases/latest | jq -r '.tag_name')/install.sh" | bash
 
-bash -c "source ~/.nvm/nvm.sh && nvm install 24"
-
-npm install context-mode
+bash -c "source ~/.nvm/nvm.sh && nvm install 24 --latest-npm --no-progress" && npm install --save-dev context-mode
 
 mkdir -p "${containerWorkspaceFolder}"/.github/hooks
 
@@ -513,9 +505,7 @@ curl -sSL https://raw.githubusercontent.com/8b-is/smart-tree/main/scripts/instal
 
 curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/$(curl -s https://api.github.com/repos/nvm-sh/nvm/releases/latest | jq -r '.tag_name')/install.sh" | bash
 
-bash -c "source ~/.nvm/nvm.sh && nvm install 24"
-
-npm install context-mode
+bash -c "source ~/.nvm/nvm.sh && nvm install 24 --latest-npm --no-progress" && npm install --save-dev context-mode
 
 mkdir -p "${containerWorkspaceFolder}"/.github/hooks
 

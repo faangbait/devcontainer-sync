@@ -3,7 +3,6 @@ workspace_root: "{{ lookup('env', 'WORKSPACE_ROOT') | default('~/dev/', true) }}
 local_timezone: America/Chicago
 
 devcontainer_sync_create_missing: false
-devcontainer_auto_rebuild: true
 devcontainer_sync_backup: true
 devcontainer_sync_backup_existing_dir: true
 devcontainer_sync_extra_files_root: "{{ playbook_dir }}/files"
@@ -71,8 +70,7 @@ devcontainer_plugins:
   contextmode:
     install_steps:
       - curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/$(curl -s https://api.github.com/repos/nvm-sh/nvm/releases/latest | jq -r '.tag_name')/install.sh" | bash
-      - bash -c "source ~/.nvm/nvm.sh && nvm install 24"
-      - npm install context-mode
+      - bash -c "source ~/.nvm/nvm.sh && nvm install 24 --latest-npm --no-progress" && npm install --save-dev context-mode
       - mkdir -p "${containerWorkspaceFolder}"/.github/hooks
       - wget https://raw.githubusercontent.com/mksglu/context-mode/refs/heads/main/configs/vscode-copilot/hooks.json -O .github/hooks/context-mode.json
     mcp:
@@ -190,10 +188,9 @@ devcontainer_plugins:
 
   typescript:
     install_steps:
-      - sudo apt update && sudo apt install -y npm --no-install-recommends
-      - curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash
-      - bash -c "source ~/.nvm/nvm.sh && nvm install 24"
-      - if [ -f "${containerWorkspaceFolder}/package.json" ]; then npm install; fi
+      - curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/$(curl -s https://api.github.com/repos/nvm-sh/nvm/releases/latest | jq -r '.tag_name')/install.sh" | bash
+      - bash -c "source ~/.nvm/nvm.sh && nvm install 24 --latest-npm --no-progress"
+      - if [ -f "${containerWorkspaceFolder}/package.json" ]; then bash -c "source ~/.nvm/nvm.sh && npm install"; fi
 
   github:
     install_steps:

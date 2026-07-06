@@ -176,14 +176,6 @@ Apply changes:
 make apply
 ```
 
-By default, a changed `.devcontainer` directory is rebuilt after all managed and extra files are written. The role hashes relative file paths and contents before and after synchronization, then runs:
-
-```bash
-devcontainer up --workspace-folder /path/to/project --remove-existing-container
-```
-
-Set `devcontainer_auto_rebuild: false` to render changes without rebuilding. Check mode never runs the rebuild command.
-
 Missing targets are skipped by default. Create them with:
 
 ```bash

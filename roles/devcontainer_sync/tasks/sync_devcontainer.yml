@@ -199,41 +199,9 @@
     path: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer/devcontainer.json'] | path_join }}"
   register: devcontainer_sync_target
 
-- name: Find initial .devcontainer files
-  ansible.builtin.find:
-    paths: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer'] | path_join }}"
-    file_type: file
-    recurse: true
-    hidden: true
-    get_checksum: true
-    checksum_algorithm: sha256
-  register: devcontainer_sync_initial_files
-  changed_when: false
-  when: devcontainer_sync_target.stat.exists
-
-- name: Store initial .devcontainer hash
+- name: Determine whether this devcontainer should be rendered
   ansible.builtin.set_fact:
-    devcontainer_sync_initial_hash: >-
-      {%- if not devcontainer_sync_target.stat.exists -%}
-      missing
-      {%- else -%}
-      {%- set entries = [] -%}
-      {%- set target_dir = [workspace_root, devcontainer_sync_target_root, '.devcontainer'] | path_join -%}
-      {%- for file in devcontainer_sync_initial_files.files | sort(attribute='path') -%}
-      {%- set _ = entries.append([file.path | relpath(target_dir), file.checksum]) -%}
-      {%- endfor -%}
-      {{ entries | to_json | hash('sha256') }}
-      {%- endif -%}
-
-- name: Check whether .editorconfig would change
-  ansible.builtin.copy:
-    src: editorconfig
-    dest: "{{ [workspace_root, devcontainer_sync_target_root, '.editorconfig'] | path_join }}"
-    mode: "0644"
-    backup: false
-  check_mode: true
-  register: devcontainer_sync_editorconfig_render_preview
-  when: devcontainer_sync_target.stat.exists
+    devcontainer_sync_should_render: "{{ devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool }}"
 
 - name: Check whether devcontainer.json would change
   ansible.builtin.copy:
@@ -287,7 +255,7 @@
     path: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer'] | path_join }}"
     state: directory
     mode: "0755"
-  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+  when: devcontainer_sync_should_render
 
 - name: Render .editorconfig
   ansible.builtin.copy:
@@ -295,7 +263,7 @@
     dest: "{{ [workspace_root, devcontainer_sync_target_root, '.editorconfig'] | path_join }}"
     mode: "0644"
     backup: "{{ devcontainer_sync_backup }}"
-  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+  when: devcontainer_sync_should_render
 
 - name: Render devcontainer.json
   ansible.builtin.copy:
@@ -303,7 +271,7 @@
     dest: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer/devcontainer.json'] | path_join }}"
     mode: "0644"
     backup: "{{ devcontainer_sync_backup }}"
-  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+  when: devcontainer_sync_should_render
 
 - name: Render install.sh
   ansible.builtin.template:
@@ -311,7 +279,7 @@
     dest: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer/install.sh'] | path_join }}"
     mode: "0755"
     backup: "{{ devcontainer_sync_backup }}"
-  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+  when: devcontainer_sync_should_render
 
 - name: Render aws_configure.sh
   ansible.builtin.template:
@@ -320,50 +288,12 @@
     mode: "0755"
     backup: "{{ devcontainer_sync_backup }}"
   when:
-    - devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
+    - devcontainer_sync_should_render
     - "'aws' in devcontainer_sync_plugin_names"
 
 - name: Copy project extra .devcontainer files
   ansible.builtin.include_tasks: extra_files.yml
-  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
-
-- name: Find rendered .devcontainer files
-  ansible.builtin.find:
-    paths: "{{ [workspace_root, devcontainer_sync_target_root, '.devcontainer'] | path_join }}"
-    file_type: file
-    recurse: true
-    hidden: true
-    get_checksum: true
-    checksum_algorithm: sha256
-  register: devcontainer_sync_rendered_files
-  changed_when: false
-  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
-
-- name: Store rendered .devcontainer hash
-  ansible.builtin.set_fact:
-    devcontainer_sync_rendered_hash: >-
-      {%- set entries = [] -%}
-      {%- set target_dir = [workspace_root, devcontainer_sync_target_root, '.devcontainer'] | path_join -%}
-      {%- for file in devcontainer_sync_rendered_files.files | sort(attribute='path') -%}
-      {%- set _ = entries.append([file.path | relpath(target_dir), file.checksum]) -%}
-      {%- endfor -%}
-      {{ entries | to_json | hash('sha256') }}
-  when: devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
-
-# - name: Rebuild changed devcontainer
-#   ansible.builtin.command:
-#     argv:
-#       - devcontainer
-#       - up
-#       - --workspace-folder
-#       - "{{ [workspace_root, devcontainer_sync_target_root] | path_join }}"
-#       - --remove-existing-container
-#   when:
-#     - devcontainer_auto_rebuild | bool
-#     - not ansible_check_mode
-#     - devcontainer_sync_target.stat.exists or devcontainer_sync_create_missing | bool
-#     - devcontainer_sync_initial_hash != devcontainer_sync_rendered_hash
-#   changed_when: true
+  when: devcontainer_sync_should_render
 
 - name: Report skipped missing devcontainer file
   ansible.builtin.debug:
