@@ -11,7 +11,7 @@ sudo ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime && sudo dpkg-reco
 
 bash -c "source ~/.nvm/nvm.sh && nvm install 24 --latest-npm --no-progress"
 
-if [ -f "${containerWorkspaceFolder}/package.json" ]; then bash -c "npm install"; fi
+if [ -f "${containerWorkspaceFolder}/package.json" ]; then bash -c "source ~/.nvm/nvm.sh && npm install"; fi
 
 curl -fsSL https://claude.ai/install.sh | bash
 

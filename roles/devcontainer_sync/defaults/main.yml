@@ -190,7 +190,7 @@ devcontainer_plugins:
     install_steps:
       - curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/$(curl -s https://api.github.com/repos/nvm-sh/nvm/releases/latest | jq -r '.tag_name')/install.sh" | bash
       - bash -c "source ~/.nvm/nvm.sh && nvm install 24 --latest-npm --no-progress"
-      - if [ -f "${containerWorkspaceFolder}/package.json" ]; then bash -c "npm install"; fi
+      - if [ -f "${containerWorkspaceFolder}/package.json" ]; then bash -c "source ~/.nvm/nvm.sh && npm install"; fi
 
   github:
     install_steps:
