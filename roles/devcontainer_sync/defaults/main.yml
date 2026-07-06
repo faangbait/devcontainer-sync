@@ -40,8 +40,18 @@ devcontainer_defaults:
   plugins:
     - codex
     - claude
+    - opencode
 
 devcontainer_plugins:
+  opencode:
+    install_steps:
+      - curl -fsSL https://opencode.ai/install | bash
+    post_create_commands:
+      - sudo chown $USER:$USER /opt/opencode-config
+      - ln -sfn /opt/opencode-config $HOME/.config/opencode
+    mounts:
+      - source=opencode-config,target=/opt/opencode-config,type=volume
+
   claude:
     vscode_extensions:
       - Anthropic.claude-code
