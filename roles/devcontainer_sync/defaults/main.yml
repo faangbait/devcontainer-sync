@@ -48,6 +48,7 @@ devcontainer_plugins:
       - curl -fsSL https://opencode.ai/install | bash
     post_create_commands:
       - sudo chown $USER:$USER /opt/opencode-config
+      - mkdir -p $HOME/.config
       - ln -sfn /opt/opencode-config $HOME/.config/opencode
     mounts:
       - source=opencode-config,target=/opt/opencode-config,type=volume
@@ -167,7 +168,7 @@ devcontainer_plugins:
   typescript:
     install_steps:
       - sudo apt update && sudo apt install -y npm --no-install-recommends
-      - npm install
+      - npm install || true 
 
   github:
     install_steps:
