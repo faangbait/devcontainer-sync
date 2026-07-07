@@ -21,7 +21,7 @@ curl -sSL https://raw.githubusercontent.com/8b-is/smart-tree/main/scripts/instal
 
 curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/$(curl -s https://api.github.com/repos/nvm-sh/nvm/releases/latest | jq -r '.tag_name')/install.sh" | bash
 
-bash -c "source ~/.nvm/nvm.sh && nvm install 24 --latest-npm --no-progress && npm install -g context-mode"
+bash -c "source ~/.nvm/nvm.sh && nvm install 24 --latest-npm --no-progress && npm install -g context-mode" || bash -c "npm install -g context-mode"
 
 mkdir -p "${containerWorkspaceFolder}"/.github/hooks
 
