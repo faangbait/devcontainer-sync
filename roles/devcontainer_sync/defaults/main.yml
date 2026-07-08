@@ -35,6 +35,7 @@ devcontainer_defaults:
     - usernamehw.errorlens
     - github.vscode-github-actions
   vscode_settings: {}
+  vscode_launch_configurations: []
   mounts: []
   run_args: []
   plugins:

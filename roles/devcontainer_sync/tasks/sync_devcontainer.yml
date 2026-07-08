@@ -87,6 +87,9 @@
       - devcontainer.vscode_extensions is sequence
       - devcontainer.vscode_extensions is not string
       - devcontainer.vscode_extensions | select('string') | list | length == devcontainer.vscode_extensions | length
+      - devcontainer.vscode_launch_configurations is sequence
+      - devcontainer.vscode_launch_configurations is not string
+      - devcontainer.vscode_launch_configurations | select('mapping') | list | length == devcontainer.vscode_launch_configurations | length
       - devcontainer.mounts is sequence
       - devcontainer.mounts is not string
       - devcontainer.mounts | select('string') | list | length == devcontainer.mounts | length
@@ -191,8 +194,19 @@
         )
         | combine({'features': devcontainer.features} if devcontainer.features else {})
         | combine({'remoteEnv': devcontainer.remote_env} if devcontainer.remote_env else {})
-        | combine({'runArgs': devcontainer.run_args} if devcontainer.run_args else {})
+         | combine({'runArgs': devcontainer.run_args} if devcontainer.run_args else {})
+       }}
+
+- name: Build vscode launch.json content
+  ansible.builtin.set_fact:
+    devcontainer_vscode_launch_json: >-
+      {{
+        {
+          'version': '0.2.0',
+          'configurations': devcontainer.vscode_launch_configurations,
+        }
       }}
+  when: devcontainer.vscode_launch_configurations | length > 0
 
 - name: Check target devcontainer file
   ansible.builtin.stat:
@@ -264,6 +278,25 @@
     mode: "0644"
     backup: "{{ devcontainer_sync_backup }}"
   when: devcontainer_sync_should_render
+
+- name: Ensure .vscode directory exists
+  ansible.builtin.file:
+    path: "{{ [workspace_root, devcontainer_sync_target_root, '.vscode'] | path_join }}"
+    state: directory
+    mode: "0755"
+  when:
+    - devcontainer_sync_should_render
+    - devcontainer.vscode_launch_configurations | length > 0
+
+- name: Render .vscode/launch.json
+  ansible.builtin.copy:
+    content: "{{ devcontainer_vscode_launch_json | to_nice_json(indent=4) }}\n"
+    dest: "{{ [workspace_root, devcontainer_sync_target_root, '.vscode/launch.json'] | path_join }}"
+    mode: "0644"
+    backup: "{{ devcontainer_sync_backup }}"
+  when:
+    - devcontainer_sync_should_render
+    - devcontainer.vscode_launch_configurations | length > 0
 
 - name: Render devcontainer.json
   ansible.builtin.copy:
