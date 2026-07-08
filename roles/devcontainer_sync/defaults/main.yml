@@ -111,6 +111,8 @@ devcontainer_plugins:
     install_steps:
       - sudo apt install -y python-is-python3
       - cargo install --locked cargo-nextest
+    vscode_extensions:
+      - vadimcn.vscode-lldb
     vscode_settings:
       rust-analyzer.runnables.test.overrideCommand:
         - cargo
@@ -124,6 +126,11 @@ devcontainer_plugins:
         - ${exact}
         - --nocapture
         - --include-ignored
+    vscode_launch_configurations:
+      - name: "Attach"
+        type: lldb
+        request: attach
+        pid: "${command:pickProcess}"
 
   python:
     features:
