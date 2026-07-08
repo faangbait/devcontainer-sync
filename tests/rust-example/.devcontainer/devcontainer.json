@@ -10,6 +10,7 @@
                 "timonwong.shellcheck",
                 "usernamehw.errorlens",
                 "github.vscode-github-actions",
+                "vadimcn.vscode-lldb",
                 "ankurmathur.opencode-provider-bridge"
             ],
             "mcp": {

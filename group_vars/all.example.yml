@@ -22,6 +22,7 @@ devcontainers:
     python_version: "3.10"
     plugins:
       - aws
+      - django
       - cache_python
       - cache_ansible
       - shell_history
