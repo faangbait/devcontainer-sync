@@ -36,6 +36,8 @@ printf 'Host *\n  User ec2-user\n  IdentityFile %s/.ssh/id_rsa\n  StrictHostKeyC
 
 bash "${containerWorkspaceFolder}/.devcontainer/aws_configure.sh"
 
+sudo apt update && sudo apt-get install -y --no-install-recommends sassc cron
+
 sudo apt update
 
 sudo apt install -y --no-install-recommends ansible

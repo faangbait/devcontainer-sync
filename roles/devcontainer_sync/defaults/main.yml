@@ -35,6 +35,7 @@ devcontainer_defaults:
     - usernamehw.errorlens
     - github.vscode-github-actions
   vscode_settings: {}
+  vscode_launch_configurations: []
   mounts: []
   run_args: []
   plugins:
@@ -110,6 +111,8 @@ devcontainer_plugins:
     install_steps:
       - sudo apt install -y python-is-python3
       - cargo install --locked cargo-nextest
+    vscode_extensions:
+      - vadimcn.vscode-lldb
     vscode_settings:
       rust-analyzer.runnables.test.overrideCommand:
         - cargo
@@ -123,6 +126,11 @@ devcontainer_plugins:
         - ${exact}
         - --nocapture
         - --include-ignored
+    vscode_launch_configurations:
+      - name: "Attach"
+        type: lldb
+        request: attach
+        pid: "${command:pickProcess}"
 
   python:
     features:
@@ -152,6 +160,18 @@ devcontainer_plugins:
       python.testing.unittestEnabled: true
       python.defaultInterpreterPath: /usr/local/python/current/bin/python
       python.analysis.autoFormatStrings: true
+    vscode_launch_configurations:
+      - name: "Python Debugger: Current File"
+        type: debugpy
+        request: launch
+        program: "${file}"
+        console: integratedTerminal
+      - name: "Python Debugger: Attach"
+        type: debugpy
+        request: attach
+        connect:
+          host: localhost
+          port: 5678
 
   aws:
     features:
@@ -183,6 +203,14 @@ devcontainer_plugins:
       python.analysis.autoImportCompletions: true
       python.analysis.diagnosticMode: workspace
       python.analysis.typeCheckingMode: basic
+    vscode_launch_configurations:
+      - name: "Python Debugger: Django"
+        type: debugpy
+        request: launch
+        program: "${workspaceFolder}/manage.py"
+        args:
+          - runserver
+        django: true
     install_steps:
       - sudo apt update && sudo apt-get install -y --no-install-recommends sassc cron
 
