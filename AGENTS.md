@@ -147,6 +147,18 @@ Cache-related plugins (`cache_cargo`, `cache_node`, `cache_python`, etc.) manage
 
 ---
 
+## Query: "add/change VS Code debug launch configurations"
+
+| Scope | Path |
+|---|---|
+| All containers | `defaults/main.yml → devcontainer_defaults.vscode_launch_configurations` |
+| All python containers | `defaults/main.yml → devcontainer_plugins.python.vscode_launch_configurations` |
+| One container | `group_vars/all.yml → devcontainers[name=X].vscode_launch_configurations` |
+
+Renders to `<container_root>/.vscode/launch.json` (outside `.devcontainer/` — the Dev Container spec's `customizations.vscode` has no `launch` key). Only written when the merged list is non-empty. List merges are append-only (no override-by-name) — do not add plugin-level defaults that depend on per-project assumptions (binary names, entry files). See `roles/devcontainer_sync/defaults/main.yml → devcontainer_plugins.python` / `.django` / `.rust` for examples.
+
+---
+
 ## Query: "add an install step"
 
 | Scope | Path |

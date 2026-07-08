@@ -120,6 +120,7 @@ List values are merged with Ansible's `append_rp` behavior, preserving order whi
 
 - `plugins`
 - `vscode_extensions`
+- `vscode_launch_configurations`
 - `mounts`
 - `run_args`
 - `post_start_commands`
@@ -127,6 +128,8 @@ List values are merged with Ansible's `append_rp` behavior, preserving order whi
 - `post_attach_commands`
 - `initialize_commands`
 - `install_steps`
+
+List merges are append-only — there is no override-by-name. A plugin default that turns out wrong for a specific project can't be replaced per-container, only appended alongside. Keep plugin-level list defaults (especially `vscode_launch_configurations`) free of per-project assumptions (binary names, entry files, package names) for this reason.
 
 Scalar values such as `image`, `name`, `path`, `python_version`, and `update_remote_user_uid` are replaced by the container entry.
 
@@ -208,7 +211,7 @@ When `devcontainer_sync_backup_existing_dir` is enabled, a changed role-managed 
 - `install.sh`
 - `aws_configure.sh` when the AWS plugin is selected
 
-Changes only to `.editorconfig` or files from `files/` do not trigger a whole-directory backup. `.editorconfig` and extra files use Ansible's individual file backup behavior when `devcontainer_sync_backup` is enabled.
+Changes only to `.editorconfig`, `.vscode/launch.json`, or files from `files/` do not trigger a whole-directory backup. `.editorconfig`, `.vscode/launch.json`, and extra files use Ansible's individual file backup behavior when `devcontainer_sync_backup` is enabled. `.vscode/launch.json` is only rendered when the merged `vscode_launch_configurations` list is non-empty for that container.
 
 Use `make rm-bak WORKSPACE_ROOT=/path/to/projects` to remove timestamped directory backups.
 
