@@ -1,14 +1,11 @@
 {
-    "name": "base-development-container",
+    "name": "workspaces-base",
     "build": {
         "dockerfile": "./Dockerfile",
         "context": "."
     },
-    // Canonical project root. Dev and prod both live at /workspaces/<name>.
     "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/${localWorkspaceFolderBasename},type=bind,consistency=cached",
-    // Boundary stamp: every process in the container inherits this. Scripts read
-    // $PROJECT_ROOT instead of re-deriving the path per language.
     "containerEnv": {
         "PROJECT_ROOT": "${containerWorkspaceFolder}"
     },

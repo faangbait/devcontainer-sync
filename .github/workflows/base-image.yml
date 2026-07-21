@@ -1,0 +1,56 @@
+name: Build and push base image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "base/**"
+      - ".github/workflows/base-image.yml"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to publish"
+        required: false
+        default: "latest"
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: faangbait/workspaces-base
+
+jobs:
+  build-and-push:
+    name: Build and push
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Resolve tag
+        id: tag
+        run: echo "tag=${{ inputs.tag || 'latest' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        id: build
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: ${{ env.IMAGE }}
+          tags: ${{ steps.tag.outputs.tag }}
+          context: base/.devcontainer
+          dockerfiles: base/.devcontainer/Dockerfile
+
+      - name: Log in to Docker Hub
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push image
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build.outputs.image }}
+          tags: ${{ steps.build.outputs.tags }}
+          registry: docker.io
