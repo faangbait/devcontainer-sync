@@ -1,0 +1,26 @@
+{
+    "name": "base-development-container",
+    "build": {
+        "dockerfile": "./Dockerfile",
+        "context": "."
+    },
+    // Canonical project root. Dev and prod both live at /workspaces/<name>.
+    "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/${localWorkspaceFolderBasename},type=bind,consistency=cached",
+    // Boundary stamp: every process in the container inherits this. Scripts read
+    // $PROJECT_ROOT instead of re-deriving the path per language.
+    "containerEnv": {
+        "PROJECT_ROOT": "${containerWorkspaceFolder}"
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "installZsh": "true",
+            "username": "vscode",
+            "userUid": "1000",
+            "userGid": "1000",
+            "upgradePackages": "true"
+        }
+    },
+    "remoteUser": "vscode",
+    "containerUser": "vscode"
+}
